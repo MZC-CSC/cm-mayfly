@@ -282,3 +282,4 @@ If you want to cleanup all Docker environments, run the following shell script.
 $ cd conf/docker
 $ ./remove_all.sh
 ```
+<!-- test: ai trace detection validation -->
