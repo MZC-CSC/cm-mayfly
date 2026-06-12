@@ -1,11 +1,14 @@
-name: AI Trace Check
-
-# C-Mig policy enforcement: prevent AI tool attribution (Claude, Anthropic, Copilot, etc.)
-# from being merged into protected branches of C-Mig related repositories.
+# ------------------------------------------------------------
+# Policy enforcement for open-source contributions: block AI direct commit signoff and co-authored-by attribution from being merged.
+#
+# In open-source contributions, the human author is expected to create commits and open pull requests. Under current open-source license frameworks (DCO, Sign-off, CLA, etc.) AI-attributed commits may have unclear implications. Following the community proposal from 2026-05-08, until the project policy is finalized, AI direct commit signoff and co-authored-by records are prohibited.
 #
 # Canonical source: https://github.com/MZC-CSC/cmig-workflow/blob/main/conf/workflow-templates/no-ai-trace.yml
-# Policy document:  https://github.com/MZC-CSC/cmig-workflow/blob/main/POLICY-AI-TRACE-GUARD.md
-# Target location in each repo: .github/workflows/no-ai-trace.yml
+# Reference policy: https://github.com/MZC-CSC/cmig-workflow/blob/main/POLICY-AI-TRACE-GUARD.md
+# Local path in target repo: .github/workflows/no-ai-trace.yml
+# ------------------------------------------------------------
+
+name: AI Direct Commit Attribution Check
 
 on:
   pull_request:
@@ -18,11 +21,11 @@ permissions:
   pull-requests: write
 
 jobs:
-  block-ai-trace:
-    name: Block AI tool attribution
+  block-ai-attribution:
+    name: Block AI direct commit signoff and co-authored-by
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -42,7 +45,7 @@ jobs:
             echo "to=${{ github.sha }}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Scan commits for AI tool attribution
+      - name: Scan commits for AI direct attribution
         id: scan
         run: |
           FROM="${{ steps.range.outputs.from }}"
@@ -86,24 +89,28 @@ jobs:
               echo "EOF"
             } >> $GITHUB_OUTPUT
 
-            echo "::error::AI tool attribution detected. See logs and PR comment for details."
+            echo "::error::AI direct commit signoff or co-authored-by attribution detected. See logs and PR comment for details."
             echo "$FOUND"
             exit 1
           fi
 
           echo "found=false" >> $GITHUB_OUTPUT
-          echo "OK: no AI tool attribution found."
+          echo "OK: no AI direct commit signoff or co-authored-by attribution found."
 
       - name: Post failure comment on PR
         if: failure() && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const details = `${{ steps.scan.outputs.details }}`;
             const body = [
-              '## AI Trace Check Failed',
+              '## AI Direct Commit Attribution Blocked',
               '',
-              'This PR contains commits with AI tool attribution that violates the project policy.',
+              'This pull request cannot be merged because it contains commits with AI tool attribution (Claude, Anthropic, GitHub Copilot, etc.) in commit message trailers (for example `Co-Authored-By`, `Signed-off-by`, `Generated-By`) or in the author/committer email.',
+              '',
+              '### Why this is blocked',
+              '',
+              'In open-source contributions, the human author is expected to create commits and open pull requests. Under current open-source license frameworks (DCO, Sign-off, CLA, etc.) AI-attributed commits may have unclear implications. Following the community proposal from 2026-05-08, until the project policy is finalized, **AI direct commit signoff and co-authored-by records are prohibited** in this repository.',
               '',
               '<details><summary>Matched commits</summary>',
               '',
@@ -115,25 +122,20 @@ jobs:
               '',
               '### How to fix',
               '',
-              '**Most recent commit only** - strip the attribution trailers:',
+              'Most recent commit only - strip the attribution trailers:',
               '```bash',
               'git commit --amend --message="$(git log -1 --pretty=\'%s%n%n%b\' | grep -vE \'Co-Authored-By:|Generated-By:|Assisted-By:|Co-Developed-By:\')"',
               'git push --force-with-lease',
               '```',
               '',
-              '**Multiple commits** - use interactive rebase:',
+              'Multiple commits - use interactive rebase:',
               '```bash',
-              'git rebase -i HEAD~5   # last 5 commits',
+              'git rebase -i HEAD~5',
               '# Mark each commit as `reword` and remove the trailer lines in the editor',
               'git push --force-with-lease',
               '```',
               '',
-              'The check will re-run automatically after you push the fixed commits.',
-              '',
-              '### Policy reference',
-              '',
-              '- Project policy: AI tool attribution must not be exposed in any C-Mig related git repository.',
-              '- [POLICY-AI-TRACE-GUARD](https://github.com/MZC-CSC/cmig-workflow/blob/main/POLICY-AI-TRACE-GUARD.md)'
+              'The check will re-run automatically after the force-push, and the merge can proceed once the AI direct commit signoff and co-authored-by records are removed. Repository administrators may also enforce this check via Branch Protection rules.'
             ].join('\n');
             github.rest.issues.createComment({
               issue_number: context.issue.number,
