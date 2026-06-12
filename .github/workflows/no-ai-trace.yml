@@ -25,7 +25,7 @@ jobs:
     name: Block AI direct commit signoff and co-authored-by
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -99,7 +99,7 @@ jobs:
 
       - name: Post failure comment on PR
         if: failure() && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const details = `${{ steps.scan.outputs.details }}`;
