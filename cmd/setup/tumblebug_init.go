@@ -537,10 +537,10 @@ func initializeTumblebug(cbTumblebugDir, originalDir string) error {
 	// (which runs from cb-tumblebug source dir) can find it. The script also
 	// uses this to persist VAULT_TOKEN back into the file mayfly's compose
 	// reads, so cb-tumblebug containers pick up the new token on restart.
-	absEnvFile, err := filepath.Abs("./conf/docker/.env")
-	if err != nil {
-		return fmt.Errorf("failed to resolve absolute path of conf/docker/.env: %v", err)
-	}
+	// Build from originalDir (mayfly's initial cwd) — by this point cwd has
+	// already been changed to targetDir, so filepath.Abs("./...") would
+	// resolve relative to the wrong root.
+	absEnvFile := filepath.Join(originalDir, "conf", "docker", ".env")
 
 	// Create a script that will run in isolation
 	script := fmt.Sprintf(`#!/bin/bash
@@ -549,6 +549,9 @@ set -e
 # Absolute path to mayfly's docker .env (consumed by cb-tumblebug's
 # openbao-init.sh below + by openbao-register-creds.py for VAULT_TOKEN read).
 export ENV_FILE="%s"
+
+# Mayfly project root (used for compose restart + init.json host-path check).
+MAYFLY_ROOT="%s"
 
 # Change to cb-tumblebug directory
 cd "%s"
@@ -566,12 +569,17 @@ echo "Using ENV_FILE: $ENV_FILE"
 #     echo "Warning: conf/setup.env file not found."
 # fi
 
+# Capture VAULT_TOKEN before Phase 0 so we can detect when openbao-init.sh
+# rewrites it - that's the signal that running containers need a restart.
+PREV_VAULT_TOKEN=$(grep -E '^VAULT_TOKEN=' "$ENV_FILE" | head -n1 | cut -d'=' -f2- || true)
+
 # Phase 0: OpenBao one-time initialization (cb-tumblebug 0.12.9+ only)
 # multi-init.sh assumes OpenBao is already initialized (it only registers
 # credentials, expecting a working VAULT_TOKEN). openbao-init.sh is what
 # generates the unseal key + root token and writes VAULT_TOKEN into .env.
 # Use OpenBao API as the source of truth — file on host may be stale after
 # a volume wipe.
+PHASE0_RAN="false"
 if [ -f "init/openbao/openbao-init.sh" ]; then
     BAO_INIT=$(curl -sf http://localhost:8200/v1/sys/seal-status 2>/dev/null | grep -o '"initialized":[^,]*' | cut -d: -f2 | tr -d ' ')
     if [ "$BAO_INIT" = "false" ]; then
@@ -579,11 +587,47 @@ if [ -f "init/openbao/openbao-init.sh" ]; then
         chmod +x init/openbao/openbao-init.sh
         ./init/openbao/openbao-init.sh
         echo "openbao-init.sh execution completed"
+        PHASE0_RAN="true"
     elif [ "$BAO_INIT" = "true" ]; then
         echo "OpenBao already initialized (API check) - skipping"
     else
         echo "Warning: OpenBao API unreachable - skipping Phase 0 (multi-init.sh will fail if OpenBao is not actually initialized)"
     fi
+fi
+
+# Phase 0 just wrote a fresh VAULT_TOKEN into .env, but the running containers
+# (cb-tumblebug, mc-terrarium) still hold the empty value they were started
+# with — Docker freezes environment variables at container start. Without this
+# restart, multi-init.sh and pricing fetches inside cb-tumblebug fall back to
+# errors like "VAULT_TOKEN is not set", which is exactly the BAR-1287 symptom 2-A
+# failure. Restart now, before Phase 1, so credentials register correctly.
+NEW_VAULT_TOKEN=$(grep -E '^VAULT_TOKEN=' "$ENV_FILE" | head -n1 | cut -d'=' -f2- || true)
+if [ "$PHASE0_RAN" = "true" ] && [ -n "$NEW_VAULT_TOKEN" ] && [ "$PREV_VAULT_TOKEN" != "$NEW_VAULT_TOKEN" ]; then
+    echo ""
+    echo "VAULT_TOKEN was rewritten by openbao-init.sh - restarting cb-tumblebug and mc-terrarium"
+    echo "so they pick up the new token before Phase 1 (multi-init.sh) registers credentials."
+    DOCKER_BIN="docker"
+    if command -v sudo >/dev/null 2>&1; then
+        DOCKER_BIN="sudo docker"
+    fi
+    (
+        cd "$MAYFLY_ROOT"
+        $DOCKER_BIN compose -f conf/docker/docker-compose.yaml restart cb-tumblebug mc-terrarium
+    ) || {
+        echo "Warning: failed to restart cb-tumblebug/mc-terrarium."
+        echo "The new VAULT_TOKEN will not take effect until you restart them manually."
+        echo "Phase 1 (multi-init.sh) below will likely fail with 'VAULT_TOKEN is not set'."
+    }
+
+    # Wait for cb-tumblebug readyz before continuing to Phase 1 (max ~60s)
+    echo "Waiting for cb-tumblebug to become healthy after restart..."
+    for i in $(seq 1 30); do
+        if curl -sf http://localhost:1323/tumblebug/readyz >/dev/null 2>&1; then
+            echo "cb-tumblebug is healthy"
+            break
+        fi
+        sleep 2
+    done
 fi
 
 # cb-tumblebug 0.12.9+ uses multi-init.sh (OpenBao + Tumblebug unified init)
@@ -603,12 +647,29 @@ else
     exit 1
 fi
 
+# Verify openbao-init.sh persisted init.json to the host bind mount that
+# the openbao-unseal sidecar reads on every container start. If it's missing,
+# the sidecar exits with "OpenBao not initialized" and OpenBao will be
+# unreachable after any EC2/Docker restart - that's BAR-1287 symptom 2-B.
+# Note: the actual persistence happens inside cb-tumblebug's openbao-init.sh
+# (upstream), so all we can do here is verify and warn loudly.
+INIT_JSON_HOST="$MAYFLY_ROOT/conf/docker/data/openbao/secrets/openbao-init.json"
+if [ "$PHASE0_RAN" = "true" ] && [ ! -f "$INIT_JSON_HOST" ]; then
+    echo ""
+    echo "WARNING: $INIT_JSON_HOST does not exist."
+    echo "openbao-init.sh did not persist init.json to the host bind mount."
+    echo "Consequence: on the next EC2/Docker restart, openbao-unseal sidecar"
+    echo "will not be able to auto-unseal OpenBao - manual intervention required."
+    echo "This indicates an upstream issue in cb-tumblebug's openbao-init.sh"
+    echo "(permission or bind-mount problem on conf/docker/data/openbao/secrets/)."
+fi
+
 echo "CB-Tumblebug initialization completed."
-`, absEnvFile, cbTumblebugDir)
+`, absEnvFile, originalDir, cbTumblebugDir)
 
 	// Write script to temporary file
 	tmpScript := filepath.Join(os.TempDir(), "tumblebug_init.sh")
-	err = os.WriteFile(tmpScript, []byte(script), 0755)
+	err := os.WriteFile(tmpScript, []byte(script), 0755)
 	if err != nil {
 		return fmt.Errorf("failed to create temporary script: %v", err)
 	}
