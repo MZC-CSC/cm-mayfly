@@ -672,12 +672,12 @@ if [ -f "init/multi-init.sh" ]; then
     # (2) the fetch-method line for init.py's "Choose Initialization Method"
     # prompt. Without this both reads stall on stdin and the script either
     # hangs or loops on "Invalid input".
-    printf '%s\n%s\n' "$TB_INIT_PWD_INPUT" "$TB_INIT_FETCH_METHOD" | ./init/multi-init.sh
+    { echo "$TB_INIT_PWD_INPUT"; echo "$TB_INIT_FETCH_METHOD"; } | ./init/multi-init.sh
     echo "multi-init.sh execution completed"
 elif [ -f "init/init.sh" ]; then
     echo "Detected init/init.sh (legacy) - using Tumblebug-only init"
     chmod +x init/init.sh
-    printf '%s\n%s\n' "$TB_INIT_PWD_INPUT" "$TB_INIT_FETCH_METHOD" | ./init/init.sh
+    { echo "$TB_INIT_PWD_INPUT"; echo "$TB_INIT_FETCH_METHOD"; } | ./init/init.sh
     echo "init.sh execution completed"
 else
     echo "Error: neither init/multi-init.sh nor init/init.sh found."
