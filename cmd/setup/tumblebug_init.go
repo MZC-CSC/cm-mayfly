@@ -645,9 +645,9 @@ fi
 # --key-file argument first, then ~/.cloud-barista/.tmp_enc_key, then the
 # MULTI_INIT_PWD environment variable, and finally falls back to an interactive
 # prompt. multi-init.sh wraps init.py but starts with its own non-skippable
-# `read -s -p` for MULTI_INIT_PWD, so we always have to feed it *something* on
-# stdin. The token doesn't actually matter — .tmp_enc_key wins downstream — but
-# the read has to be satisfied. Use the project-standard "default".
+# read for MULTI_INIT_PWD, so we always have to feed it something on stdin.
+# The token doesn't actually matter — .tmp_enc_key wins downstream — but the
+# read has to be satisfied. Use the project-standard "default".
 KEYFILE="$HOME/.cloud-barista/.tmp_enc_key"
 PWD_CHANNEL="prompt"
 if [ -f "$KEYFILE" ]; then
