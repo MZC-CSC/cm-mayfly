@@ -583,7 +583,18 @@ PHASE0_RAN="false"
 if [ -f "init/openbao/openbao-init.sh" ]; then
     BAO_INIT=$(curl -sf http://localhost:8200/v1/sys/seal-status 2>/dev/null | grep -o '"initialized":[^,]*' | cut -d: -f2 | tr -d ' ')
     if [ "$BAO_INIT" = "false" ]; then
+        # Redirect openbao-init.sh's init.json output to the host bind-mount path
+        # that openbao-unseal sidecar reads on every container start. The default
+        # ${SCRIPT_DIR}/secrets/openbao-init.json sits inside the cb-tumblebug source
+        # tree, which our compose doesn't bind-mount into the sidecar — leaving the
+        # sidecar unable to auto-unseal OpenBao after any EC2/Docker restart. This
+        # is the BAR-1287 symptom 2-B root cause on our side (cm-mayfly runs docker
+        # compose from a different directory than cb-tumblebug's standard layout).
+        SECRETS_HOST_DIR="${MAYFLY_ROOT}/conf/docker/data/openbao/secrets"
+        mkdir -p "${SECRETS_HOST_DIR}"
+        export INIT_OUTPUT="${SECRETS_HOST_DIR}/openbao-init.json"
         echo "OpenBao not initialized (API check) - running init/openbao/openbao-init.sh"
+        echo "  INIT_OUTPUT=${INIT_OUTPUT}  (will land where openbao-unseal sidecar reads it)"
         chmod +x init/openbao/openbao-init.sh
         ./init/openbao/openbao-init.sh
         echo "openbao-init.sh execution completed"
@@ -630,17 +641,43 @@ if [ "$PHASE0_RAN" = "true" ] && [ -n "$NEW_VAULT_TOKEN" ] && [ "$PREV_VAULT_TOK
     done
 fi
 
+# Resolve the encryption password. cb-tumblebug's init.py honours an explicit
+# --key-file argument first, then ~/.cloud-barista/.tmp_enc_key, then the
+# MULTI_INIT_PWD environment variable, and finally falls back to an interactive
+# prompt. multi-init.sh wraps init.py but starts with its own non-skippable
+# `read -s -p` for MULTI_INIT_PWD, so we always have to feed it *something* on
+# stdin. The token doesn't actually matter — .tmp_enc_key wins downstream — but
+# the read has to be satisfied. Use the project-standard "default".
+KEYFILE="$HOME/.cloud-barista/.tmp_enc_key"
+PWD_CHANNEL="prompt"
+if [ -f "$KEYFILE" ]; then
+    PWD_CHANNEL="keyfile"
+elif [ -n "$MULTI_INIT_PWD" ]; then
+    PWD_CHANNEL="env"
+fi
+echo "tumblebug-init password channel: ${PWD_CHANNEL}"
+# Fetch method choice presented inside init.py:
+#   a/a+ : restore from bundled assets (no live CSP fetch)
+#   b    : fresh fetch from CSPs (excluding Azure) — what cm-mayfly defaults to
+#   c    : fresh fetch including Azure (~40+ minutes)
+TB_INIT_PWD_INPUT="${MULTI_INIT_PWD:-default}"
+TB_INIT_FETCH_METHOD="${TB_INIT_FETCH_METHOD:-b}"
+
 # cb-tumblebug 0.12.9+ uses multi-init.sh (OpenBao + Tumblebug unified init)
 # cb-tumblebug 0.12.8 and below uses init.sh (legacy fallback)
 if [ -f "init/multi-init.sh" ]; then
     echo "Detected init/multi-init.sh - using unified init (OpenBao + Tumblebug)"
     chmod +x init/multi-init.sh
-    ./init/multi-init.sh
+    # Feed (1) the password line for multi-init.sh's read -s -p, then
+    # (2) the fetch-method line for init.py's "Choose Initialization Method"
+    # prompt. Without this both reads stall on stdin and the script either
+    # hangs or loops on "Invalid input".
+    printf '%s\n%s\n' "$TB_INIT_PWD_INPUT" "$TB_INIT_FETCH_METHOD" | ./init/multi-init.sh
     echo "multi-init.sh execution completed"
 elif [ -f "init/init.sh" ]; then
     echo "Detected init/init.sh (legacy) - using Tumblebug-only init"
     chmod +x init/init.sh
-    ./init/init.sh
+    printf '%s\n%s\n' "$TB_INIT_PWD_INPUT" "$TB_INIT_FETCH_METHOD" | ./init/init.sh
     echo "init.sh execution completed"
 else
     echo "Error: neither init/multi-init.sh nor init/init.sh found."
