@@ -591,6 +591,11 @@ if [ -f "init/openbao/openbao-init.sh" ]; then
         # is the BAR-1287 symptom 2-B root cause on our side (cm-mayfly runs docker
         # compose from a different directory than cb-tumblebug's standard layout).
         SECRETS_HOST_DIR="${MAYFLY_ROOT}/conf/docker/data/openbao/secrets"
+        # The openbao-unseal sidecar container creates this bind-mount path on
+        # first start as root:root drwxr-xr-x, so the unprivileged ubuntu user
+        # that runs openbao-init.sh can't write into it. Reclaim ownership (best
+        # effort — silent if sudo isn't usable or path doesn't exist yet).
+        sudo -n chown -R "$(id -u):$(id -g)" "${SECRETS_HOST_DIR}" >/dev/null 2>&1 || true
         mkdir -p "${SECRETS_HOST_DIR}"
         export INIT_OUTPUT="${SECRETS_HOST_DIR}/openbao-init.json"
         echo "OpenBao not initialized (API check) - running init/openbao/openbao-init.sh"
