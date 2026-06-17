@@ -701,7 +701,9 @@ services:
         - ./conf/cm-cicada/_airflow/create_airflow_db.sql:/docker-entrypoint-initdb.d/create_airflow_db.sql
         - ./data/cm-cicada/db_data:/var/lib/mysql
     healthcheck:
-      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "airflow", "-pairflow_pass" ]
+      # Use the centrally-managed .env credentials instead of hardcoded ones,
+      # so the healthcheck stays in sync with whatever .env supplies to MYSQL_USER/PASSWORD.
+      test: [ "CMD-SHELL", "mysqladmin ping -h localhost -u $${MYSQL_USER} -p$${MYSQL_PASSWORD}" ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -730,6 +732,14 @@ services:
         - MYSQL_PASSWORD=${AIRFLOW_DB_PASSWORD}
         - MYSQL_HOST=airflow-mysql
         - MYSQL_DATABASE=${AIRFLOW_DB_NAME}
+        # AIRFLOW__{CORE,DATABASE}__SQL_ALCHEMY_CONN explicitly override airflow.cfg, which
+        # otherwise keeps its built-in default of mysql://airflow:airflow_pass@airflow-mysql/airflow
+        # regardless of the MYSQL_* variables above. Without these airflow-server fails with
+        # "Access denied for user 'airflow'" whenever .env values differ from the hardcoded defaults
+        # — same shape as the cm-ant ANT_DATABASE_* gap above. Both CORE (deprecated alias still
+        # consulted in 2.x) and DATABASE keys are set so the override holds across version bumps.
+        - AIRFLOW__CORE__SQL_ALCHEMY_CONN=mysql+mysqldb://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PASSWORD}@airflow-mysql/${AIRFLOW_DB_NAME}
+        - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=mysql+mysqldb://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PASSWORD}@airflow-mysql/${AIRFLOW_DB_NAME}
     ports:
         - "5555:5555"
         - "8080:8080"
@@ -841,6 +851,13 @@ services:
       - ANT_TUMBLEBUG_HOST=http://cb-tumblebug
       - ANT_TUMBLEBUG_PORT=1323
       - ANT_DATABASE_HOST=ant-postgres
+      # cm-ant Go application reads ANT_DATABASE_USER/PASSWORD/NAME (not ANT_DB_*),
+      # so remap from the shared .env names here. Without these three lines cm-ant
+      # falls back to its built-in defaults (cm-ant-user/cm-ant-secret/cm-ant-db)
+      # and authentication against ant-postgres fails whenever .env values differ.
+      - ANT_DATABASE_USER=${ANT_DB_USER}
+      - ANT_DATABASE_PASSWORD=${ANT_DB_PASSWORD}
+      - ANT_DATABASE_NAME=${ANT_DB_NAME}
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://cm-ant:8880/ant/readyz" ]
       <<: *default-health-check
