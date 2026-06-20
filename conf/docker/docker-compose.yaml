@@ -20,7 +20,7 @@ services:
   # https://github.com/cloud-barista/cb-spider/wiki/Docker-based-Start-Guide
   # https://hub.docker.com/r/cloudbaristaorg/cb-spider
   cb-spider:
-    image: cloudbaristaorg/cb-spider:0.12.26
+    image: cloudbaristaorg/cb-spider:0.12.30
     pull_policy: always
     container_name: cb-spider
     restart: unless-stopped
@@ -55,7 +55,7 @@ services:
   # https://hub.docker.com/r/cloudbaristaorg/cb-tumblebug
   # See https://github.com/cloud-barista/cb-tumblebug/blob/main/docker-compose.yaml
   cb-tumblebug:
-    image: cloudbaristaorg/cb-tumblebug:0.12.13
+    image: cloudbaristaorg/cb-tumblebug:0.12.15
     container_name: cb-tumblebug
     restart: unless-stopped
     pull_policy: always
@@ -200,7 +200,7 @@ services:
   # used by cb-tumblebug
   # See https://github.com/cloud-barista/cb-tumblebug/blob/main/docker-compose.yaml
   cb-mapui:
-    image: cloudbaristaorg/cb-mapui:0.12.41
+    image: cloudbaristaorg/cb-mapui:0.12.39
     container_name: cb-mapui
     restart: unless-stopped
     pull_policy: always
