@@ -360,18 +360,36 @@ services:
           exit 0
         fi
 
-        # 3. sealed → unseal
+        # 3. sealed → unseal. Wait briefly for the init file: on a clean first
+        #    run init may still be writing it. Never abort the whole stack from
+        #    here (mc-terrarium depends_on this sidecar) — on an unrecoverable
+        #    state, print guidance and exit 0 so the rest of the stack starts.
+        i=0
+        while [ ! -f "$$INIT_FILE" ] && [ $$i -lt 30 ]; do
+          echo "[openbao-unseal] waiting for $$INIT_FILE ..."
+          sleep 2
+          i=$$((i + 1))
+        done
         if [ ! -f "$$INIT_FILE" ]; then
-          echo "[openbao-unseal] ERROR: $$INIT_FILE not found. Cannot unseal."
-          exit 1
+          echo "[openbao-unseal] $$INIT_FILE not found; run 'mayfly setup openbao init' then unseal with 'mayfly setup openbao unseal'. Skipping so the rest of the stack can start."
+          exit 0
         fi
 
-        # keys[0] in the OpenBao init response is the hex unseal key (keys_base64[0] is the same key, base64-encoded).
-        # /sys/unseal accepts both, and cb-tumblebug's official unseal.sh also uses keys[0].
-        UNSEAL_KEY=$$(grep -o '"keys":\["[^"]*"' "$$INIT_FILE" | cut -d'"' -f4)
+        # Extract the unseal key, tolerating field-name differences across
+        # OpenBao versions: `bao operator init -format=json` emits
+        # unseal_keys_hex / unseal_keys_b64, while older tooling used keys /
+        # keys_base64. /sys/unseal accepts a hex or base64 key. The init JSON
+        # is pretty-printed (the value sits on the line after the field name),
+        # so flatten whitespace first before matching on a single line.
+        INIT_JSON=$$(tr -d ' \n\t' < "$$INIT_FILE")
+        UNSEAL_KEY=""
+        for field in unseal_keys_hex unseal_keys_b64 keys keys_base64; do
+          UNSEAL_KEY=$$(printf '%s' "$$INIT_JSON" | grep -o "\"$$field\":\[\"[^\"]*\"" | head -n1 | cut -d'"' -f4)
+          [ -n "$$UNSEAL_KEY" ] && break
+        done
         if [ -z "$$UNSEAL_KEY" ]; then
-          echo "[openbao-unseal] ERROR: cannot extract unseal key from $$INIT_FILE"
-          exit 1
+          echo "[openbao-unseal] could not find an unseal key in $$INIT_FILE; unseal manually with 'mayfly setup openbao unseal'. Skipping so the rest of the stack can start."
+          exit 0
         fi
         echo "[openbao-unseal] unsealing via mayfly rest..."
         $$MAYFLY rest post $${VAULT_ADDR}/v1/sys/unseal \
