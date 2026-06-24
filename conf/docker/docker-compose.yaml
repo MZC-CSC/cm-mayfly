@@ -235,7 +235,7 @@ services:
         protocol: tcp
     depends_on:
       openbao-unseal:
-        condition: service_completed_successfully
+        condition: service_healthy
     volumes:
       - ./tool/mayfly:/app/tool/mayfly
       - ./data/mc-terrarium/.terrarium:/app/.terrarium
@@ -323,7 +323,7 @@ services:
   openbao-unseal:
     image: alpine:3.20
     container_name: openbao-unseal
-    restart: "no"     # one-shot — terminates after exit
+    restart: unless-stopped     # auto-unseal watcher — keeps OpenBao unsealed
     networks:
       - default
     depends_on:
@@ -332,69 +332,65 @@ services:
     volumes:
       - ./tool/mayfly:/app/tool/mayfly:ro
       - ./data/openbao/secrets:/secrets:ro
+    healthcheck:
+      # Healthy once OpenBao reports unsealed. Dependents wait on this instead
+      # of waiting for a one-shot to complete, so the watcher can keep running
+      # and re-unseal after a restart.
+      test: ["CMD-SHELL", "/app/tool/mayfly rest get http://openbao:8200/v1/sys/seal-status -o /tmp/h.json >/dev/null 2>&1 && tr -d ' \n\t' < /tmp/h.json | grep -q '\"sealed\":false'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        set -e
         VAULT_ADDR=http://openbao:8200
         INIT_FILE=/secrets/openbao-init.json
         MAYFLY=/app/tool/mayfly
 
-        # 1. wait for the openbao API (using mayfly rest get)
-        until $$MAYFLY rest get $${VAULT_ADDR}/v1/sys/seal-status -o /tmp/status.json > /dev/null 2>&1; do
-          echo "[openbao-unseal] waiting for openbao..."
-          sleep 2
+        # Continuous auto-unseal watcher. OpenBao comes up SEALED on every
+        # (re)start — including a host / EC2 stop-start — and the previous
+        # one-shot sidecar did not re-run, so OpenBao stayed sealed and callers
+        # silently fell back (cb-tumblebug direct SDK) with higher latency.
+        # This loop keeps OpenBao unsealed across the stack's lifetime.
+        echo "[openbao-unseal] auto-unseal watcher started"
+        while true; do
+          if ! $$MAYFLY rest get $${VAULT_ADDR}/v1/sys/seal-status -o /tmp/status.json > /dev/null 2>&1; then
+            sleep 5; continue
+          fi
+          INITIALIZED=$$(grep -o '"initialized":[^,]*' /tmp/status.json | cut -d: -f2)
+          SEALED=$$(grep -o '"sealed":[^,]*' /tmp/status.json | cut -d: -f2)
+          if [ "$$INITIALIZED" = "false" ]; then
+            sleep 15; continue   # before the first init — nothing to unseal yet
+          fi
+          if [ "$$SEALED" = "false" ]; then
+            sleep 30; continue   # already unsealed — re-check periodically
+          fi
+
+          # sealed → unseal. The init JSON is pretty-printed and its key field
+          # name varies by OpenBao version (keys / unseal_keys_hex / ...), so
+          # flatten whitespace and try each field. /sys/unseal accepts hex or
+          # base64.
+          if [ ! -f "$$INIT_FILE" ]; then
+            echo "[openbao-unseal] sealed but $$INIT_FILE missing; run 'mayfly setup openbao init'. Retrying..."
+            sleep 10; continue
+          fi
+          INIT_JSON=$$(tr -d ' \n\t' < "$$INIT_FILE")
+          UNSEAL_KEY=""
+          for field in unseal_keys_hex unseal_keys_b64 keys keys_base64; do
+            UNSEAL_KEY=$$(printf '%s' "$$INIT_JSON" | grep -o "\"$$field\":\[\"[^\"]*\"" | head -n1 | cut -d'"' -f4)
+            [ -n "$$UNSEAL_KEY" ] && break
+          done
+          if [ -z "$$UNSEAL_KEY" ]; then
+            echo "[openbao-unseal] could not find an unseal key in $$INIT_FILE; unseal manually with 'mayfly setup openbao unseal'. Retrying..."
+            sleep 15; continue
+          fi
+          echo "[openbao-unseal] OpenBao is sealed — unsealing via mayfly rest..."
+          $$MAYFLY rest post $${VAULT_ADDR}/v1/sys/unseal \
+            -H "Content-Type: application/json" \
+            -d "{\"key\":\"$$UNSEAL_KEY\"}" > /dev/null 2>&1 && echo "[openbao-unseal] OpenBao is now unsealed."
+          sleep 5
         done
-
-        # 2. branch on status (using alpine's default sh + grep/sed/cut)
-        SEALED=$$(grep -o '"sealed":[^,]*' /tmp/status.json | cut -d: -f2)
-        INITIALIZED=$$(grep -o '"initialized":[^,]*' /tmp/status.json | cut -d: -f2)
-
-        if [ "$$INITIALIZED" = "false" ]; then
-          echo "[openbao-unseal] OpenBao not initialized. Run 'mayfly setup tumblebug-init' for first-time setup."
-          exit 0    # skip — normal flow since this is before the first init
-        fi
-
-        if [ "$$SEALED" = "false" ]; then
-          echo "[openbao-unseal] already unsealed. nothing to do."
-          exit 0
-        fi
-
-        # 3. sealed → unseal. Wait briefly for the init file: on a clean first
-        #    run init may still be writing it. Never abort the whole stack from
-        #    here (mc-terrarium depends_on this sidecar) — on an unrecoverable
-        #    state, print guidance and exit 0 so the rest of the stack starts.
-        i=0
-        while [ ! -f "$$INIT_FILE" ] && [ $$i -lt 30 ]; do
-          echo "[openbao-unseal] waiting for $$INIT_FILE ..."
-          sleep 2
-          i=$$((i + 1))
-        done
-        if [ ! -f "$$INIT_FILE" ]; then
-          echo "[openbao-unseal] $$INIT_FILE not found; run 'mayfly setup openbao init' then unseal with 'mayfly setup openbao unseal'. Skipping so the rest of the stack can start."
-          exit 0
-        fi
-
-        # Extract the unseal key, tolerating field-name differences across
-        # OpenBao versions: `bao operator init -format=json` emits
-        # unseal_keys_hex / unseal_keys_b64, while older tooling used keys /
-        # keys_base64. /sys/unseal accepts a hex or base64 key. The init JSON
-        # is pretty-printed (the value sits on the line after the field name),
-        # so flatten whitespace first before matching on a single line.
-        INIT_JSON=$$(tr -d ' \n\t' < "$$INIT_FILE")
-        UNSEAL_KEY=""
-        for field in unseal_keys_hex unseal_keys_b64 keys keys_base64; do
-          UNSEAL_KEY=$$(printf '%s' "$$INIT_JSON" | grep -o "\"$$field\":\[\"[^\"]*\"" | head -n1 | cut -d'"' -f4)
-          [ -n "$$UNSEAL_KEY" ] && break
-        done
-        if [ -z "$$UNSEAL_KEY" ]; then
-          echo "[openbao-unseal] could not find an unseal key in $$INIT_FILE; unseal manually with 'mayfly setup openbao unseal'. Skipping so the rest of the stack can start."
-          exit 0
-        fi
-        echo "[openbao-unseal] unsealing via mayfly rest..."
-        $$MAYFLY rest post $${VAULT_ADDR}/v1/sys/unseal \
-          -H "Content-Type: application/json" \
-          -d "{\"key\":\"$$UNSEAL_KEY\"}" > /dev/null
         echo "[openbao-unseal] OpenBao is now unsealed."
 
 
