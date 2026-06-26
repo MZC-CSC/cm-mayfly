@@ -294,8 +294,9 @@ services:
 
   # openbao-unseal (sidecar)
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  # On restart OpenBao comes up in the sealed state, so this one-shot sidecar
-  # automates unsealing so the user doesn't have to enter the manual unseal command every time.
+  # On restart OpenBao comes up in the sealed state, so this watcher sidecar
+  # polls and re-unseals automatically so the user doesn't have to enter the
+  # manual unseal command every time.
   #
   # ⚠ Security trade-off (must be reviewed for production environments)
   # ──────────────────────────────────────────────────────────────────────
@@ -306,9 +307,10 @@ services:
   # In other words, if the host is compromised, anyone can access all OpenBao secrets.
   #
   # Depending on your production security level, consider the following:
-  #   1) Manual unseal — comment out this sidecar and have the user run
-  #      `bao operator unseal` or enter the key directly on the host on every restart.
-  #      Most secure, but increases availability and operational burden.
+  #   1) Manual unseal — comment out this sidecar and run
+  #      `mayfly setup openbao unseal` (or enter the key directly) on the host
+  #      after every restart. Most secure, but increases availability and
+  #      operational burden.
   #   2) Cloud KMS Auto-Unseal — use AWS KMS / GCP Cloud KMS / Azure
   #      Key Vault. Add a `seal "awskms"` stanza to conf/openbao/openbao-config.hcl
   #      → the unseal key is sealed with the KMS key, so no host file is needed.
@@ -326,6 +328,11 @@ services:
     restart: unless-stopped     # auto-unseal watcher — keeps OpenBao unsealed
     networks:
       - default
+    environment:
+      # Poll cadence (seconds) for the auto-unseal watcher. Single source of
+      # truth is conf/docker/.env (OPENBAO_UNSEAL_POLL_INTERVAL); 30 is the
+      # default if unset.
+      OPENBAO_UNSEAL_POLL_INTERVAL: ${OPENBAO_UNSEAL_POLL_INTERVAL:-30}
     depends_on:
       openbao:
         condition: service_healthy
@@ -344,54 +351,26 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        VAULT_ADDR=http://openbao:8200
-        INIT_FILE=/secrets/openbao-init.json
         MAYFLY=/app/tool/mayfly
+        INTERVAL=$${OPENBAO_UNSEAL_POLL_INTERVAL:-30}
 
         # Continuous auto-unseal watcher. OpenBao comes up SEALED on every
-        # (re)start — including a host / EC2 stop-start — and the previous
-        # one-shot sidecar did not re-run, so OpenBao stayed sealed and callers
-        # silently fell back (cb-tumblebug direct SDK) with higher latency.
-        # This loop keeps OpenBao unsealed across the stack's lifetime.
-        echo "[openbao-unseal] auto-unseal watcher started"
+        # (re)start — including a host / EC2 stop-start. `mayfly setup openbao
+        # unseal` reads the init file as JSON natively (no grep/python) and is a
+        # no-op when OpenBao is already unsealed, so polling it keeps OpenBao
+        # unsealed across the stack's lifetime. It prints only when it actually
+        # unseals, so steady-state logs stay quiet.
+        #
+        # Polling cadence is OPENBAO_UNSEAL_POLL_INTERVAL (seconds) from .env.
+        # For fully manual operation, comment this whole service out and run
+        # `mayfly setup openbao unseal` by hand after a restart.
+        echo "[openbao-unseal] auto-unseal watcher started (poll $${INTERVAL}s)"
         while true; do
-          if ! $$MAYFLY rest get $${VAULT_ADDR}/v1/sys/seal-status -o /tmp/status.json > /dev/null 2>&1; then
-            sleep 5; continue
-          fi
-          INITIALIZED=$$(grep -o '"initialized":[^,]*' /tmp/status.json | cut -d: -f2)
-          SEALED=$$(grep -o '"sealed":[^,]*' /tmp/status.json | cut -d: -f2)
-          if [ "$$INITIALIZED" = "false" ]; then
-            sleep 15; continue   # before the first init — nothing to unseal yet
-          fi
-          if [ "$$SEALED" = "false" ]; then
-            sleep 30; continue   # already unsealed — re-check periodically
-          fi
-
-          # sealed → unseal. The init JSON is pretty-printed and its key field
-          # name varies by OpenBao version (keys / unseal_keys_hex / ...), so
-          # flatten whitespace and try each field. /sys/unseal accepts hex or
-          # base64.
-          if [ ! -f "$$INIT_FILE" ]; then
-            echo "[openbao-unseal] sealed but $$INIT_FILE missing; run 'mayfly setup openbao init'. Retrying..."
-            sleep 10; continue
-          fi
-          INIT_JSON=$$(tr -d ' \n\t' < "$$INIT_FILE")
-          UNSEAL_KEY=""
-          for field in unseal_keys_hex unseal_keys_b64 keys keys_base64; do
-            UNSEAL_KEY=$$(printf '%s' "$$INIT_JSON" | grep -o "\"$$field\":\[\"[^\"]*\"" | head -n1 | cut -d'"' -f4)
-            [ -n "$$UNSEAL_KEY" ] && break
-          done
-          if [ -z "$$UNSEAL_KEY" ]; then
-            echo "[openbao-unseal] could not find an unseal key in $$INIT_FILE; unseal manually with 'mayfly setup openbao unseal'. Retrying..."
-            sleep 15; continue
-          fi
-          echo "[openbao-unseal] OpenBao is sealed — unsealing via mayfly rest..."
-          $$MAYFLY rest post $${VAULT_ADDR}/v1/sys/unseal \
-            -H "Content-Type: application/json" \
-            -d "{\"key\":\"$$UNSEAL_KEY\"}" > /dev/null 2>&1 && echo "[openbao-unseal] OpenBao is now unsealed."
-          sleep 5
+          $$MAYFLY setup openbao unseal \
+            --file /secrets/openbao-init.json \
+            --addr http://openbao:8200 2>&1 | sed 's/^/[openbao-unseal] /'
+          sleep "$${INTERVAL}"
         done
-        echo "[openbao-unseal] OpenBao is now unsealed."
 
 
   # cm-beetle
