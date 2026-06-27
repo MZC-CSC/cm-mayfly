@@ -1,0 +1,13 @@
+# gitleaks baseline — 수용된 오탐(false positive). 형식: <file>:<rule>:<line>
+# 신규 실제 시크릿은 계속 차단되고, 아래 항목만 예외 처리된다.
+# 검토일 2026-06-26 (cmig-workflow 보안 게이트 도입). 정책: POLICY-SECURITY.md
+
+# 소스 주석/문서의 예시 curl 명령(localhost·예시 자격증명) — 실제 시크릿 아님
+cmd/setup/credential.go:curl-auth-user:9
+cmd/setup/credential.go:curl-auth-user:15
+cmd/setup/credential.go:curl-auth-user:299
+docs/upgrade-cb-tb-0.12.9.md:curl-auth-user:120
+docs/upgrade-cb-tb-0.12.9.md:curl-auth-user:124
+
+# vendored cb-tumblebug 기본 설정의 샘플 JWT(업스트림 기본값, 우리 시크릿 아님)
+conf/docker/conf/cb-tumblebug/conf/grpc_conf.yaml:jwt:26
