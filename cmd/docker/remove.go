@@ -142,10 +142,44 @@ data are preserved (equivalent to 'docker compose down').
 			common.SysCall(fmt.Sprintf("sudo rm -rf %s", abs))
 		}
 
+		// --clean-all also removed the OpenBao host data + volume, so the
+		// VAULT_TOKEN in .env now points at credentials that no longer exist.
+		// Clear just that key (every other user setting is preserved) so the
+		// next `setup openbao init` runs cleanly without needing --force.
+		if cleanAllFlag {
+			envFile := filepath.Join("conf", "docker", ".env")
+			if err := clearEnvKey(envFile, "VAULT_TOKEN"); err != nil {
+				fmt.Printf("warn: failed to clear VAULT_TOKEN from %s: %v\n", envFile, err)
+			} else {
+				fmt.Println("Cleared VAULT_TOKEN from .env (OpenBao credentials were removed).")
+			}
+		}
+
 		printDependencyHint(services)
 
 		SysCallDockerComposePsWithAll(false)
 	},
+}
+
+// clearEnvKey rewrites the .env at path, setting key to an empty value while
+// preserving every other line. If the key is absent the file is left unchanged.
+func clearEnvKey(path, key string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	lines := strings.Split(string(data), "\n")
+	found := false
+	for i, line := range lines {
+		if strings.HasPrefix(strings.TrimSpace(line), key+"=") {
+			lines[i] = key + "="
+			found = true
+		}
+	}
+	if !found {
+		return nil
+	}
+	return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0644)
 }
 
 // printDependencyHint reminds the user that, with the flat data layout, a
