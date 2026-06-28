@@ -164,7 +164,8 @@ data are preserved (equivalent to 'docker compose down').
 // clearEnvKey rewrites the .env at path, setting key to an empty value while
 // preserving every other line. If the key is absent the file is left unchanged.
 func clearEnvKey(path, key string) error {
-	data, err := os.ReadFile(path)
+	// path is a fixed internal .env location (conf/docker/.env), not user input.
+	data, err := os.ReadFile(path) // #nosec G304
 	if err != nil {
 		return err
 	}
@@ -179,7 +180,9 @@ func clearEnvKey(path, key string) error {
 	if !found {
 		return nil
 	}
-	return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0644)
+	// .env holds secrets (VAULT_TOKEN); keep it owner-only. The file already
+	// exists here, so this preserves its current mode rather than widening it.
+	return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0600)
 }
 
 // printDependencyHint reminds the user that, with the flat data layout, a
