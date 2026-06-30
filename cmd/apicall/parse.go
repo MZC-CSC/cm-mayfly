@@ -155,8 +155,7 @@ func applyToApiYaml(apiFile, service string, singleAction bool, actions map[stri
 	}
 
 	backup := fmt.Sprintf("%s.bak.%s", apiFile, time.Now().Format("20060102-150405"))
-	// api.yaml is not secret (credentials are ${ENV} placeholders), so 0644 is fine.
-	if err := os.WriteFile(backup, orig, 0644); err != nil { // #nosec G306
+	if err := os.WriteFile(backup, orig, 0600); err != nil {
 		return fmt.Errorf("failed to write backup %s: %w", backup, err)
 	}
 
@@ -176,12 +175,12 @@ func applyToApiYaml(apiFile, service string, singleAction bool, actions map[stri
 		}
 	}
 
-	if err := os.WriteFile(apiFile, []byte(updated), 0644); err != nil { // #nosec G306
+	if err := os.WriteFile(apiFile, []byte(updated), 0600); err != nil {
 		return fmt.Errorf("failed to write %s: %w", apiFile, err)
 	}
 
 	if verr := verifyApiYaml(apiFile); verr != nil {
-		_ = os.WriteFile(apiFile, orig, 0644) // #nosec G306 -- restore original on failure
+		_ = os.WriteFile(apiFile, orig, 0600) // restore original on failure
 		return fmt.Errorf("updated %s failed verification (%v); restored original (backup kept at %s)", apiFile, verr, backup)
 	}
 
