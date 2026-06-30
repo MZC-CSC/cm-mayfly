@@ -45,6 +45,9 @@ services:
       type: basic
       username: ${SPIDER_USERNAME}
       password: ${SPIDER_PASSWORD}
+    swagger:
+      latest: https://raw.githubusercontent.com/cloud-barista/cb-spider/master/api/swagger.json
+      release: https://raw.githubusercontent.com/cloud-barista/cb-spider/{release}/api/swagger.json
 
   cb-tumblebug:
     version: 0.12.19
@@ -53,11 +56,17 @@ services:
       type: basic
       username: ${TB_API_USERNAME}
       password: ${TB_API_PASSWORD}
+    swagger:
+      latest: https://raw.githubusercontent.com/cloud-barista/cb-tumblebug/main/src/interface/rest/docs/swagger.json
+      release: https://raw.githubusercontent.com/cloud-barista/cb-tumblebug/{release}/src/interface/rest/docs/swagger.json
   cm-ant:
     version: 0.5.2
     baseurl: http://cm-ant:8880/ant
     auth:
       type: none
+    swagger:
+      latest: https://raw.githubusercontent.com/cloud-barista/cm-ant/main/api/swagger.json
+      release: https://raw.githubusercontent.com/cloud-barista/cm-ant/{release}/api/swagger.json
   cm-beetle:
     version: 0.5.3
     baseurl: http://cm-beetle:8056/beetle
@@ -65,6 +74,9 @@ services:
       type: basic
       username: ${BEETLE_API_USERNAME}
       password: ${BEETLE_API_PASSWORD}
+    swagger:
+      latest: https://raw.githubusercontent.com/cloud-barista/cm-beetle/main/api/swagger.json
+      release: https://raw.githubusercontent.com/cloud-barista/cm-beetle/{release}/api/swagger.json
 
   cm-butterfly-api:
     version: 0.4.0
@@ -78,6 +90,9 @@ services:
     baseurl: http://cm-cicada:8083/cicada
     auth:
       type: none
+    swagger:
+      latest: https://raw.githubusercontent.com/cloud-barista/cm-cicada/main/pkg/api/rest/docs/swagger.json
+      release: https://raw.githubusercontent.com/cloud-barista/cm-cicada/{release}/pkg/api/rest/docs/swagger.json
 
   cm-honeybee:
     version: 0.5.0
@@ -90,6 +105,9 @@ services:
     baseurl: http://cm-grasshopper:8084/grasshopper
     auth:
       type: none
+    swagger:
+      latest: https://raw.githubusercontent.com/cloud-barista/cm-grasshopper/main/pkg/api/rest/docs/swagger.json
+      release: https://raw.githubusercontent.com/cloud-barista/cm-grasshopper/{release}/pkg/api/rest/docs/swagger.json
 
   cm-damselfly:
     version: 0.5.1
@@ -98,6 +116,9 @@ services:
       type: basic
       username: ${DAMSELFLY_API_USERNAME}
       password: ${DAMSELFLY_API_PASSWORD}
+    swagger:
+      latest: https://raw.githubusercontent.com/cloud-barista/cm-damselfly/main/api/swagger.json
+      release: https://raw.githubusercontent.com/cloud-barista/cm-damselfly/{release}/api/swagger.json
 
 serviceActions:
   cb-spider:
