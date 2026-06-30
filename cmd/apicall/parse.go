@@ -82,7 +82,8 @@ func runTool() error {
 	if serviceName == "" {
 		return fmt.Errorf("--apply requires --service to choose which service's serviceActions to update")
 	}
-	return applyToApiYaml(common.API_FILE, serviceName, actionName != "", actions)
+	version := gjson.Get(json, "info.version").String()
+	return applyToApiYaml(common.API_FILE, serviceName, actionName != "", actions, version)
 }
 
 // readSwaggerSource reads a swagger document from a local file or an http(s) URL.
@@ -147,7 +148,7 @@ func renderActions(actions map[string]swaggerAction) string {
 // applyToApiYaml writes the generated actions into apiFile (conf/api.yaml) with a
 // timestamped backup, then verifies the result still parses as YAML and restores
 // the original on failure.
-func applyToApiYaml(apiFile, service string, singleAction bool, actions map[string]swaggerAction) error {
+func applyToApiYaml(apiFile, service string, singleAction bool, actions map[string]swaggerAction, version string) error {
 	orig, err := os.ReadFile(apiFile) // #nosec G304 -- fixed internal api.yaml path
 	if err != nil {
 		return fmt.Errorf("failed to read %s: %w", apiFile, err)
@@ -163,6 +164,18 @@ func applyToApiYaml(apiFile, service string, singleAction bool, actions map[stri
 	if err != nil {
 		return err
 	}
+	// On a full-service dump, also sync services.<svc>.version to the swagger's
+	// version so the recorded version matches the applied spec (otherwise the
+	// version and the actions can drift). A single --action is a partial patch,
+	// so it leaves the service version untouched.
+	versionSynced := false
+	if !singleAction && version != "" {
+		if u, ok := updateServiceVersion(updated, service, version); ok {
+			updated = u
+			versionSynced = true
+		}
+	}
+
 	if err := os.WriteFile(apiFile, []byte(updated), 0644); err != nil { // #nosec G306
 		return fmt.Errorf("failed to write %s: %w", apiFile, err)
 	}
@@ -176,8 +189,68 @@ func applyToApiYaml(apiFile, service string, singleAction bool, actions map[stri
 	if singleAction {
 		scope = "1 action"
 	}
+	if versionSynced {
+		scope = fmt.Sprintf("%s + version %s", scope, version)
+	}
 	fmt.Printf("Applied %s for service %q to %s; backup: %s\n", scope, service, apiFile, backup)
 	return nil
+}
+
+// updateServiceVersion sets services.<service>.version to version (text edit, so
+// the rest of the file is preserved). It returns ok=false if the service or its
+// version line is not found, leaving the content unchanged.
+func updateServiceVersion(content, service, version string) (string, bool) {
+	lines := strings.Split(content, "\n")
+
+	secStart := -1
+	for i, l := range lines {
+		if strings.TrimRight(l, " ") == "services:" {
+			secStart = i
+			break
+		}
+	}
+	if secStart < 0 {
+		return content, false
+	}
+	secEnd := len(lines)
+	for i := secStart + 1; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) == "" {
+			continue
+		}
+		if !strings.HasPrefix(lines[i], " ") {
+			secEnd = i
+			break
+		}
+	}
+
+	svcHeader := "  " + service + ":"
+	svcStart := -1
+	for i := secStart + 1; i < secEnd; i++ {
+		if strings.TrimRight(lines[i], " ") == svcHeader {
+			svcStart = i
+			break
+		}
+	}
+	if svcStart < 0 {
+		return content, false
+	}
+	svcEnd := secEnd
+	for i := svcStart + 1; i < secEnd; i++ {
+		if strings.TrimSpace(lines[i]) == "" {
+			continue
+		}
+		if strings.HasPrefix(lines[i], "  ") && !strings.HasPrefix(lines[i], "   ") {
+			svcEnd = i
+			break
+		}
+	}
+	for i := svcStart + 1; i < svcEnd; i++ {
+		if strings.HasPrefix(strings.TrimSpace(lines[i]), "version:") {
+			lines[i] = "    version: " + version
+			return strings.Join(lines, "\n"), true
+		}
+	}
+	return content, false
 }
 
 // verifyApiYaml re-reads api.yaml and ensures it still parses as YAML.
