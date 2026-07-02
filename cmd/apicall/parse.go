@@ -158,7 +158,7 @@ func runTool(cmd *cobra.Command) error {
 	if applyToYaml {
 		verb = "api.yaml에 반영합니다"
 	}
-	multi := len(svcs) > 1 || (serviceName == "" && !fileSet)
+	multi := len(svcs) > 1
 	if multi {
 		relLabel := "최신"
 		if releaseVer != "" {
