@@ -39,7 +39,7 @@
 # =============================================================================
 services:
   cb-spider: #service name
-    version: 0.12.32
+    version: 0.12.32(latest)
     baseurl: http://cb-spider:1024/spider # baseurl is Scheme + Host + Base Path
     auth: # cb-spider 0.12.17+ requires REST auth; credentials are read from the env (see header).
       type: basic
@@ -50,7 +50,7 @@ services:
       release: https://raw.githubusercontent.com/cloud-barista/cb-spider/{release}/api/swagger.json
 
   cb-tumblebug:
-    version: 0.12.22
+    version: 0.12.22(latest)
     baseurl: http://cb-tumblebug:1323/tumblebug
     auth:
       type: basic
@@ -60,7 +60,7 @@ services:
       latest: https://raw.githubusercontent.com/cloud-barista/cb-tumblebug/main/src/interface/rest/docs/swagger.json
       release: https://raw.githubusercontent.com/cloud-barista/cb-tumblebug/{release}/src/interface/rest/docs/swagger.json
   cm-ant:
-    version: 0.5.2
+    version: 0.5.2(0.6.0)
     baseurl: http://cm-ant:8880/ant
     auth:
       type: none
@@ -68,7 +68,7 @@ services:
       latest: https://raw.githubusercontent.com/cloud-barista/cm-ant/main/api/swagger.json
       release: https://raw.githubusercontent.com/cloud-barista/cm-ant/{release}/api/swagger.json
   cm-beetle:
-    version: 0.5.4
+    version: 0.5.4(latest)
     baseurl: http://cm-beetle:8056/beetle
     auth:
       type: basic
@@ -86,7 +86,7 @@ services:
       type: none
       
   cm-cicada:
-    version: 0.5.0
+    version: latest(latest)
     baseurl: http://cm-cicada:8083/cicada
     auth:
       type: none
@@ -101,7 +101,7 @@ services:
       type: none 
 
   cm-grasshopper:
-    version: 0.5.0
+    version: latest(latest)
     baseurl: http://cm-grasshopper:8084/grasshopper
     auth:
       type: none
@@ -110,7 +110,7 @@ services:
       release: https://raw.githubusercontent.com/cloud-barista/cm-grasshopper/{release}/pkg/api/rest/docs/swagger.json
 
   cm-damselfly:
-    version: 0.5.1
+    version: 0.5.1(latest)
     baseurl: http://cm-damselfly:8088/damselfly
     auth: # cm-damselfly checks these only when DAMSELFLY_API_AUTH_ENABLED=true; otherwise they are ignored.
       type: basic

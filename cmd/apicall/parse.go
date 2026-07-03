@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/tidwall/gjson"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 var swaggerFile string
@@ -240,13 +240,52 @@ func processOne(svc, source string) error {
 		}
 		actions = map[string]swaggerAction{key: picked}
 	}
+	version := recordedVersion(gjson.Get(json, "info.version").String())
 	if !applyToYaml {
-		fmt.Printf("\n# %s  (info.version=%s)\n", svc, gjson.Get(json, "info.version").String())
+		fmt.Printf("\n# %s  (version=%s)\n", svc, version)
 		fmt.Print(renderActions(actions))
 		return nil
 	}
-	version := gjson.Get(json, "info.version").String()
 	return applyToApiYaml(common.API_FILE, svc, actionName != "", actions, version)
+}
+
+// recordedVersion returns the version recorded to api.yaml as
+// "<requested version>(<swagger info.version>)".
+//
+// The leading part is what the option asked for — the tag from --release (with
+// the leading "v" stripped, since we record versions without it), or "latest"
+// for --latest. The parenthetical is exactly what the swagger document declares
+// in its info.version, taken verbatim; only a missing/blank value is recorded as
+// "None" to flag that the document carries no version:
+//
+//	--release 0.12.22, document info.version="latest" -> "0.12.22(latest)"
+//	--release 0.6.0,   document info.version="0.5.0"  -> "0.6.0(0.5.0)"
+//	--latest,          document info.version="0.6.0"  -> "latest(0.6.0)"
+//	--latest,          document info.version="latest" -> "latest(latest)"
+//	--latest,          document info.version=""       -> "latest(None)"
+//
+// A raw -f source has no requested version, so it keeps the document's own
+// value (or "None" when the document declares none).
+func recordedVersion(infoVer string) string {
+	inner := strings.TrimSpace(infoVer)
+	if inner == "" {
+		inner = "None"
+	}
+	switch {
+	case releaseVer != "":
+		return strings.TrimPrefix(releaseVer, "v") + "(" + inner + ")"
+	case useLatest:
+		return "latest(" + inner + ")"
+	default:
+		return inner
+	}
+}
+
+// releaseURLTag returns the tag embedded in a release swagger URL. Cloud-Barista
+// tags are "v"-prefixed, so normalize to that regardless of whether the user
+// passed the tag with or without the leading "v".
+func releaseURLTag() string {
+	return "v" + strings.TrimPrefix(releaseVer, "v")
 }
 
 // resolveSwaggerURL returns the swagger URL for svc from api.yaml's
@@ -257,7 +296,7 @@ func resolveSwaggerURL(svc string) (string, bool) {
 		if rel == "" {
 			return "", false
 		}
-		return strings.ReplaceAll(rel, "{release}", releaseVer), true
+		return strings.ReplaceAll(rel, "{release}", releaseURLTag()), true
 	}
 	latest := viper.GetString("services." + svc + ".swagger.latest")
 	if latest == "" {
@@ -434,61 +473,78 @@ func applyToApiYaml(apiFile, service string, singleAction bool, actions map[stri
 	return nil
 }
 
-// updateServiceVersion sets services.<service>.version to version (text edit, so
-// the rest of the file is preserved). It returns ok=false if the service or its
-// version line is not found, leaving the content unchanged.
+// isServiceHeaderLine reports whether line is the "  <service>:" header under
+// services:, tolerating a trailing inline comment (e.g. the api.yaml ships
+// "  cb-spider: #service name"). Matching on the exact string would miss such a
+// header and silently skip its version sync.
+// yamlRoot parses content and returns the top-level mapping node, so callers can
+// locate sections and keys by structure — and by the exact line numbers the
+// parser reports — instead of by fragile string matching. Only the located lines
+// are spliced by the callers, so comments, blank lines, ${ENV} placeholders and
+// emoji elsewhere in the file are left byte-for-byte intact.
+func yamlRoot(content string) (*yaml.Node, error) {
+	var doc yaml.Node
+	if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
+		return nil, err
+	}
+	if doc.Kind != yaml.DocumentNode || len(doc.Content) == 0 {
+		return nil, fmt.Errorf("empty YAML document")
+	}
+	return doc.Content[0], nil
+}
+
+// mapChild returns the value node for key in a mapping node, or nil.
+func mapChild(m *yaml.Node, key string) *yaml.Node {
+	if m == nil || m.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i+1 < len(m.Content); i += 2 {
+		if m.Content[i].Value == key {
+			return m.Content[i+1]
+		}
+	}
+	return nil
+}
+
+// keyEntryLines returns the 1-based line of key's entry in mapping m and the
+// 1-based line of the following sibling entry (nextLine == 0 when key is the last
+// entry). A returned line of 0 means the key is absent.
+func keyEntryLines(m *yaml.Node, key string) (line, nextLine int) {
+	if m == nil || m.Kind != yaml.MappingNode {
+		return 0, 0
+	}
+	for i := 0; i+1 < len(m.Content); i += 2 {
+		if m.Content[i].Value == key {
+			line = m.Content[i].Line
+			if i+2 < len(m.Content) {
+				nextLine = m.Content[i+2].Line
+			}
+			return line, nextLine
+		}
+	}
+	return 0, 0
+}
+
+// updateServiceVersion sets services.<service>.version to version, editing only
+// that one line (the rest of the file is preserved). It returns ok=false if the
+// service or its version line is not found, leaving the content unchanged.
 func updateServiceVersion(content, service, version string) (string, bool) {
+	root, err := yamlRoot(content)
+	if err != nil {
+		return content, false
+	}
+	vLine, _ := keyEntryLines(mapChild(mapChild(root, "services"), service), "version")
+	if vLine == 0 {
+		return content, false
+	}
 	lines := strings.Split(content, "\n")
-
-	secStart := -1
-	for i, l := range lines {
-		if strings.TrimRight(l, " ") == "services:" {
-			secStart = i
-			break
-		}
-	}
-	if secStart < 0 {
+	idx := vLine - 1
+	if idx < 0 || idx >= len(lines) {
 		return content, false
 	}
-	secEnd := len(lines)
-	for i := secStart + 1; i < len(lines); i++ {
-		if strings.TrimSpace(lines[i]) == "" {
-			continue
-		}
-		if !strings.HasPrefix(lines[i], " ") {
-			secEnd = i
-			break
-		}
-	}
-
-	svcHeader := "  " + service + ":"
-	svcStart := -1
-	for i := secStart + 1; i < secEnd; i++ {
-		if strings.TrimRight(lines[i], " ") == svcHeader {
-			svcStart = i
-			break
-		}
-	}
-	if svcStart < 0 {
-		return content, false
-	}
-	svcEnd := secEnd
-	for i := svcStart + 1; i < secEnd; i++ {
-		if strings.TrimSpace(lines[i]) == "" {
-			continue
-		}
-		if strings.HasPrefix(lines[i], "  ") && !strings.HasPrefix(lines[i], "   ") {
-			svcEnd = i
-			break
-		}
-	}
-	for i := svcStart + 1; i < svcEnd; i++ {
-		if strings.HasPrefix(strings.TrimSpace(lines[i]), "version:") {
-			lines[i] = "    version: " + version
-			return strings.Join(lines, "\n"), true
-		}
-	}
-	return content, false
+	indent := lines[idx][:len(lines[idx])-len(strings.TrimLeft(lines[idx], " "))]
+	lines[idx] = indent + "version: " + version
+	return strings.Join(lines, "\n"), true
 }
 
 // verifyApiYaml re-reads api.yaml and ensures it still parses as YAML.
@@ -506,63 +562,40 @@ func verifyApiYaml(apiFile string) error {
 // replaces the whole "  <service>:" block under the top-level "serviceActions:"
 // map (full dump) or a single "    <action>:" entry within it.
 func updateServiceActionsBlock(content, service string, singleAction bool, actions map[string]swaggerAction) (string, error) {
-	lines := strings.Split(content, "\n")
-
-	// Locate top-level "serviceActions:".
-	saStart := -1
-	for i, l := range lines {
-		if strings.TrimRight(l, " ") == "serviceActions:" {
-			saStart = i
-			break
-		}
+	root, err := yamlRoot(content)
+	if err != nil {
+		return "", err
 	}
-	if saStart < 0 {
+	sa := mapChild(root, "serviceActions")
+	if sa == nil {
 		return "", fmt.Errorf("'serviceActions:' section not found in %s", common.API_FILE)
 	}
-	// End of the serviceActions section = next non-indented, non-empty line.
-	saEnd := len(lines)
-	for i := saStart + 1; i < len(lines); i++ {
-		if strings.TrimSpace(lines[i]) == "" {
-			continue
-		}
-		if !strings.HasPrefix(lines[i], " ") {
-			saEnd = i
-			break
-		}
+	lines := strings.Split(content, "\n")
+
+	// End of the serviceActions section (1-based, exclusive): the next top-level
+	// key's line, or EOF when serviceActions is the last top-level key.
+	saEnd := len(lines) + 1
+	if _, saNextTop := keyEntryLines(root, "serviceActions"); saNextTop != 0 {
+		saEnd = saNextTop
 	}
 
-	svcHeader := "  " + service + ":"
 	newSvcBody := renderActions(actions) // 4-space-indented action blocks
 
-	// Locate "  <service>:" within the serviceActions section.
-	svcStart := -1
-	for i := saStart + 1; i < saEnd; i++ {
-		if strings.TrimRight(lines[i], " ") == svcHeader {
-			svcStart = i
-			break
-		}
-	}
-
-	if svcStart < 0 {
+	svcKeyLine, svcNextLine := keyEntryLines(sa, service)
+	if svcKeyLine == 0 {
 		// Service absent: append a new "  <service>:" block at the end of the section.
-		block := []string{svcHeader}
-		block = append(block, splitNonEmpty(newSvcBody)...)
-		out := append([]string{}, lines[:saEnd]...)
+		at := saEnd - 1 // 0-based insert index
+		block := append([]string{"  " + service + ":"}, splitNonEmpty(newSvcBody)...)
+		out := append([]string{}, lines[:at]...)
 		out = append(out, block...)
-		out = append(out, lines[saEnd:]...)
+		out = append(out, lines[at:]...)
 		return strings.Join(out, "\n"), nil
 	}
 
-	// Service block body ends at the next 2-space key (next service) or section end.
-	svcEnd := saEnd
-	for i := svcStart + 1; i < saEnd; i++ {
-		if strings.TrimSpace(lines[i]) == "" {
-			continue
-		}
-		if strings.HasPrefix(lines[i], "  ") && !strings.HasPrefix(lines[i], "   ") {
-			svcEnd = i
-			break
-		}
+	svcStart := svcKeyLine - 1 // 0-based "  <service>:" line
+	svcEnd := saEnd - 1        // 0-based, exclusive
+	if svcNextLine != 0 {
+		svcEnd = svcNextLine - 1
 	}
 
 	if !singleAction {
@@ -578,34 +611,20 @@ func updateServiceActionsBlock(content, service string, singleAction bool, actio
 	for n := range actions {
 		actName = n
 	}
-	actHeader := "    " + actName + ":"
 	newActBody := splitNonEmpty(renderActions(actions))
 
-	// Locate "    <action>:" within the service block.
-	actStart := -1
-	for i := svcStart + 1; i < svcEnd; i++ {
-		if strings.TrimRight(lines[i], " ") == actHeader {
-			actStart = i
-			break
-		}
-	}
-	if actStart < 0 {
+	actKeyLine, actNextLine := keyEntryLines(mapChild(sa, service), actName)
+	if actKeyLine == 0 {
 		// Action absent: insert at the end of the service block.
 		out := append([]string{}, lines[:svcEnd]...)
 		out = append(out, newActBody...)
 		out = append(out, lines[svcEnd:]...)
 		return strings.Join(out, "\n"), nil
 	}
-	// Action body ends at the next 4-space key or the service block end.
+	actStart := actKeyLine - 1
 	actEnd := svcEnd
-	for i := actStart + 1; i < svcEnd; i++ {
-		if strings.TrimSpace(lines[i]) == "" {
-			continue
-		}
-		if strings.HasPrefix(lines[i], "    ") && !strings.HasPrefix(lines[i], "     ") {
-			actEnd = i
-			break
-		}
+	if actNextLine != 0 {
+		actEnd = actNextLine - 1
 	}
 	out := append([]string{}, lines[:actStart]...)
 	out = append(out, newActBody...)
