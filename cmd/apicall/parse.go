@@ -1,22 +1,28 @@
 package apicall
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/cm-mayfly/cm-mayfly/common"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"github.com/tidwall/gjson"
 	"gopkg.in/yaml.v2"
 )
 
 var swaggerFile string
 var applyToYaml bool
+var releaseVer string
+var useLatest bool
+var skipConfirm bool
 
 // parseCmd is the `api tool` subcommand. It parses a Swagger JSON (file or URL)
 // into api.yaml serviceActions and either prints them or, with --apply, writes
@@ -41,7 +47,7 @@ Examples:
   mayfly api tool -f https://.../swagger.json --service cm-ant --apply
   mayfly api tool -f ./cm-ant.swagger.json --service cm-ant --action GetEstimateCost --apply`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runTool()
+		return runTool(cmd)
 	},
 }
 
@@ -51,15 +57,181 @@ type swaggerAction struct {
 	Description  string
 }
 
-func runTool() error {
-	data, err := readSwaggerSource(swaggerFile)
+// swaggerTarget is one service to process with its resolved swagger source.
+type swaggerTarget struct {
+	svc string
+	url string
+}
+
+const (
+	hrThick = "==============================================="
+	hrThin  = "---------------------------------------------------------------------------------"
+)
+
+func runTool(cmd *cobra.Command) error {
+	// Load api.yaml so services.<svc>.swagger is available (the `api tool`
+	// subcommand does not run the parent's config load).
+	viper.SetConfigFile(configFile)
+	_ = viper.ReadInConfig()
+
+	fileSet := cmd.Flags().Changed("file")
+
+	// Source options are mutually exclusive: -f / --latest / --release.
+	srcN := 0
+	for _, on := range []bool{fileSet, useLatest, releaseVer != ""} {
+		if on {
+			srcN++
+		}
+	}
+	if srcN > 1 {
+		return fmt.Errorf("소스 옵션은 -f / --latest / --release 중 하나만 지정하세요.")
+	}
+
+	// No source given: ask (latest vs a specific release).
+	if srcN == 0 {
+		if skipConfirm {
+			return fmt.Errorf("자동화(-y) 시에는 소스(-f/--latest/--release)와 대상(--service)을 명시하세요.")
+		}
+		if promptChoice("Swagger 소스가 지정되지 않았습니다. 어떤 Swagger를 사용할까요?", "최신(각 서비스 기본 브랜치)", "특정 릴리스 버전") == 2 {
+			releaseVer = promptLine("릴리스 버전을 입력하세요 (예: v0.5.2): ")
+			if releaseVer == "" {
+				return fmt.Errorf("릴리스 버전이 입력되지 않았습니다.")
+			}
+		} else {
+			useLatest = true
+		}
+	}
+
+	if !applyToYaml {
+		fmt.Println("api.yaml에 직접 반영하려면 --apply 플래그를 지정해 주세요. (현재는 화면 출력만 합니다.)")
+	}
+
+	// Determine the target services.
+	var svcs []string
+	switch {
+	case serviceName != "":
+		svcs = []string{serviceName}
+	case fileSet:
+		return fmt.Errorf("-f로 단일 소스를 줄 때는 --service로 대상 서비스를 지정하세요.")
+	default:
+		if skipConfirm {
+			return fmt.Errorf("자동화(-y) 시에는 --service를 명시하세요.")
+		}
+		if promptChoice("--service 미지정 — 처리 대상을 선택하세요.", "특정 서비스만", "전체 서비스") == 1 {
+			s := promptLine("서비스명을 입력하세요: ")
+			if s == "" {
+				return fmt.Errorf("서비스명이 입력되지 않았습니다.")
+			}
+			svcs = []string{s}
+		} else {
+			svcs = registeredSwaggerServices()
+			if len(svcs) == 0 {
+				return fmt.Errorf("swagger 정보가 등록된 서비스가 없습니다 (api.yaml services.<svc>.swagger).")
+			}
+		}
+	}
+
+	// Resolve each service's source URL; for registry sources, check existence.
+	var present, missing []swaggerTarget
+	for _, svc := range svcs {
+		if fileSet {
+			present = append(present, swaggerTarget{svc, swaggerFile})
+			continue
+		}
+		url, ok := resolveSwaggerURL(svc)
+		if !ok {
+			if len(svcs) == 1 {
+				return fmt.Errorf("서비스 %q에 swagger 정보가 없습니다. -f로 직접 지정하거나 api.yaml의 services.%s.swagger를 확인하세요.", svc, svc)
+			}
+			missing = append(missing, swaggerTarget{svc, "(swagger 미등록)"})
+			continue
+		}
+		if swaggerExists(url) {
+			present = append(present, swaggerTarget{svc, url})
+		} else {
+			missing = append(missing, swaggerTarget{svc, url})
+		}
+	}
+
+	// Summary + confirmation.
+	verb := "api.yaml 구조로 화면에 출력합니다"
+	if applyToYaml {
+		verb = "api.yaml에 반영합니다"
+	}
+	multi := len(svcs) > 1
+	if multi {
+		relLabel := "최신"
+		if releaseVer != "" {
+			relLabel = releaseVer + " 릴리스 버전의"
+		}
+		fmt.Printf("\n모든 서비스에 대해 %s API를 %s.\n", relLabel, verb)
+		if len(missing) > 0 {
+			fmt.Println()
+			fmt.Println(hrThick)
+			fmt.Println("[경고]")
+			fmt.Println(hrThick)
+			fmt.Println("아래 서비스들은 요청한 버전의 API 문서가 존재하지 않습니다. 버전 및 URL을 확인하세요.")
+			fmt.Println("(-f 와 -s 옵션을 이용하면 특정 URL과 특정 서비스를 지정할 수 있습니다.)")
+			printTargets(missing)
+			fmt.Println(hrThin)
+		}
+		if len(present) == 0 {
+			fmt.Println("\n처리할 수 있는 서비스가 없습니다.")
+			return nil
+		}
+		fmt.Println("\n아래 서비스들의 API만 처리합니다.")
+		printTargets(present)
+	} else {
+		if len(present) == 0 {
+			m := missing[0]
+			return fmt.Errorf("요청한 Swagger를 찾을 수 없습니다: %s : %s — 버전(vX.Y.Z) 또는 --latest 를 확인하세요.", m.svc, m.url)
+		}
+		t := present[0]
+		scope := t.svc + " Service 전체"
+		if actionName != "" {
+			scope = fmt.Sprintf("%s Service의 %s 액션", t.svc, actionName)
+		}
+		fmt.Printf("\n%s에 대해 %s.\n소스: %s\n", scope, verb, t.url)
+	}
+
+	if !skipConfirm && !confirmYN("\n계속 진행하시겠습니까? (Y/n): ") {
+		fmt.Println("취소되었습니다.")
+		return nil
+	}
+
+	var firstErr error
+	for _, t := range present {
+		if err := processOne(t.svc, t.url); err != nil {
+			fmt.Printf("[%s] 실패: %v\n", t.svc, err)
+			if firstErr == nil {
+				firstErr = err
+			}
+		}
+	}
+	return firstErr
+}
+
+// printTargets prints "  <svc> : <url>" with the service names left-aligned.
+func printTargets(items []swaggerTarget) {
+	w := 0
+	for _, t := range items {
+		if len(t.svc) > w {
+			w = len(t.svc)
+		}
+	}
+	for _, t := range items {
+		fmt.Printf("  %-*s : %s\n", w, t.svc, t.url)
+	}
+}
+
+// processOne reads one swagger source and prints or applies it for one service.
+func processOne(svc, source string) error {
+	data, err := readSwaggerSource(source)
 	if err != nil {
-		return fmt.Errorf("failed to read swagger source %q: %w", swaggerFile, err)
+		return fmt.Errorf("failed to read swagger %q: %w", source, err)
 	}
 	json := string(data)
 	actions := extractActions(json)
-
-	// Optional single-action filter.
 	if actionName != "" {
 		key := convertActionlName(actionName)
 		picked, ok := actions[key]
@@ -68,22 +240,89 @@ func runTool() error {
 		}
 		actions = map[string]swaggerAction{key: picked}
 	}
-
 	if !applyToYaml {
-		// Print mode: assist manual api.yaml editing (previous behavior).
-		fmt.Println("API Title:", gjson.Get(json, "info.title").String())
-		fmt.Println("API Version:", gjson.Get(json, "info.version").String())
-		fmt.Println("Host:", gjson.Get(json, "host").String())
-		fmt.Println("Base Path:", gjson.Get(json, "basePath").String())
+		fmt.Printf("\n# %s  (info.version=%s)\n", svc, gjson.Get(json, "info.version").String())
 		fmt.Print(renderActions(actions))
 		return nil
 	}
-
-	if serviceName == "" {
-		return fmt.Errorf("--apply requires --service to choose which service's serviceActions to update")
-	}
 	version := gjson.Get(json, "info.version").String()
-	return applyToApiYaml(common.API_FILE, serviceName, actionName != "", actions, version)
+	return applyToApiYaml(common.API_FILE, svc, actionName != "", actions, version)
+}
+
+// resolveSwaggerURL returns the swagger URL for svc from api.yaml's
+// services.<svc>.swagger (latest, or release with {release} substituted).
+func resolveSwaggerURL(svc string) (string, bool) {
+	if releaseVer != "" {
+		rel := viper.GetString("services." + svc + ".swagger.release")
+		if rel == "" {
+			return "", false
+		}
+		return strings.ReplaceAll(rel, "{release}", releaseVer), true
+	}
+	latest := viper.GetString("services." + svc + ".swagger.latest")
+	if latest == "" {
+		return "", false
+	}
+	return latest, true
+}
+
+// swaggerExists reports whether the swagger URL responds with 200.
+func swaggerExists(url string) bool {
+	resp, err := http.Get(url) // #nosec G107 -- registry URL from api.yaml
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	return resp.StatusCode == http.StatusOK
+}
+
+// registeredSwaggerServices returns the services that have a swagger entry.
+func registeredSwaggerServices() []string {
+	var out []string
+	for svc := range viper.GetStringMap("services") {
+		if viper.IsSet("services." + svc + ".swagger") {
+			out = append(out, svc)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// stdinReader is shared across prompts so buffered input is not lost between
+// successive reads.
+var stdinReader = bufio.NewReader(os.Stdin)
+
+func promptChoice(q string, opts ...string) int {
+	fmt.Println(q)
+	for i, o := range opts {
+		fmt.Printf("  %d) %s\n", i+1, o)
+	}
+	fmt.Print("선택: ")
+	line, _ := stdinReader.ReadString('\n')
+	n, _ := strconv.Atoi(strings.TrimSpace(line))
+	if n < 1 || n > len(opts) {
+		return 1
+	}
+	return n
+}
+
+func promptLine(prompt string) string {
+	fmt.Print(prompt)
+	line, _ := stdinReader.ReadString('\n')
+	return strings.TrimSpace(line)
+}
+
+// confirmYN reads a yes/no answer. Enter (empty) defaults to yes. An EOF (no
+// input available) is treated as "no" so non-interactive runs do not proceed
+// unintentionally; use -y to skip the prompt in automation.
+func confirmYN(prompt string) bool {
+	fmt.Print(prompt)
+	line, err := stdinReader.ReadString('\n')
+	if err != nil && line == "" {
+		return false
+	}
+	s := strings.ToLower(strings.TrimSpace(line))
+	return s == "" || s == "y" || s == "yes"
 }
 
 // readSwaggerSource reads a swagger document from a local file or an http(s) URL.
@@ -408,4 +647,7 @@ func init() {
 	apiCmd.AddCommand(parseCmd)
 	parseCmd.PersistentFlags().StringVarP(&swaggerFile, "file", "f", common.SWAG_FILE, "Swagger JSON source: local file path or http(s) URL")
 	parseCmd.PersistentFlags().BoolVar(&applyToYaml, "apply", false, "Apply parsed actions into conf/api.yaml (default: print to stdout)")
+	parseCmd.PersistentFlags().BoolVar(&useLatest, "latest", false, "Use each service's latest swagger URL from api.yaml (services.<svc>.swagger.latest)")
+	parseCmd.PersistentFlags().StringVar(&releaseVer, "release", "", "Use a specific release tag's swagger (services.<svc>.swagger.release, {release} substituted)")
+	parseCmd.PersistentFlags().BoolVarP(&skipConfirm, "yes", "y", false, "Skip the confirmation prompt (for automation; requires source and target to be specified)")
 }
