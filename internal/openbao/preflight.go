@@ -8,7 +8,7 @@ package openbao
 //
 // Keeping this in internal/openbao (next to Init/Unseal/Status) means all three
 // entry points share one judgement — the single source of truth that prevents
-// the "silent deadlock" the ETRI integration hit (BAR-1408).
+// the "silent deadlock" a broken OpenBao state can cause.
 
 import (
 	"encoding/json"
@@ -22,14 +22,14 @@ import (
 	"github.com/cm-mayfly/cm-mayfly/common"
 )
 
-// Case enumerates the OpenBao state-consistency verdicts. See the BAR-1408
-// design doc (state signal model T/J/D/A/V) for the full matrix.
+// Case enumerates the OpenBao state-consistency verdicts. See the state-signal
+// model (T/J/D/A/V) for the full matrix.
 type Case int
 
 const (
 	CaseFresh         Case = iota // C1: no token, no storage → normal first install
 	CaseConsistent                // C2: token + storage + initialized + valid token
-	CaseOrphanedToken             // C3: token present but storage wiped (ETRI)
+	CaseOrphanedToken             // C3: token present but storage wiped
 	CaseStaleInitJSON             // C4: init.json present but storage wiped — untrustworthy
 	CaseLostToken                 // C5: storage + init.json intact, .env token only lost
 	CaseCorrupt                   // C6: storage present but API reports not-initialized
@@ -138,7 +138,7 @@ func dataDirState() (populated, known bool) {
 // non-200 here is either a genuine auth failure (authInvalid) or a residual
 // transient we could not resolve (authUnknown) — the two must never collapse to
 // the same "false" the old boolean returned, which mis-flagged a transition-
-// window 503 as a wrong token (BAR-1408 follow-up).
+// window 503 as a wrong token.
 type tokenAuthState int
 
 const (
