@@ -71,12 +71,23 @@ For example, you can install and run, stop, update and ... Cloud-Migrator runtim
 // password; cm-beetle binds BEETLE_API_PASSWORD to its basic-auth credential and,
 // because the published image ships no config file, falls back to an empty
 // password when this value is blank).
+//
+// The DB *user* keys are required too, not just the passwords: each postgres
+// service's healthcheck is `pg_isready -U ${*_DB_USER}`, which fails with
+// "option requires an argument" when the user is blank — leaving the DB stuck
+// "unhealthy" and every service that depends_on it unable to start. Checking
+// only the passwords let a blank TUMBLEBUG_DB_USER slip through and silently
+// deadlock the cb-tumblebug chain on a fresh install.
 var requiredEnvKeys = []string{
 	"SPIDER_USERNAME",
 	"SPIDER_PASSWORD",
+	"TUMBLEBUG_DB_USER",
 	"TUMBLEBUG_DB_PASSWORD",
+	"BUTTERFLY_DB_USER",
 	"BUTTERFLY_DB_PASSWORD",
+	"ANT_DB_USER",
 	"ANT_DB_PASSWORD",
+	"AIRFLOW_DB_USER",
 	"AIRFLOW_DB_PASSWORD",
 	"AIRFLOW_DB_ROOT_PASSWORD",
 	"BEETLE_API_PASSWORD",
@@ -127,7 +138,7 @@ func validateDockerEnvFile() error {
 	return fmt.Errorf("required values are missing or blank in %s:\n  - %s\n\n"+
 		"These fields must be set before running this command:\n"+
 		"  * SPIDER_USERNAME / SPIDER_PASSWORD — cb-spider 0.12.17+ exits with log.Fatal when blank.\n"+
-		"  * *_DB_PASSWORD — the postgres / mysql images refuse to start without a password.\n"+
+		"  * *_DB_USER / *_DB_PASSWORD — the postgres / mysql images refuse to start without a password, and each DB healthcheck (pg_isready -U ${*_DB_USER}) fails when the user is blank, blocking every service that depends on it.\n"+
 		"  * BEETLE_API_PASSWORD — cm-beetle basic-auth password; left blank it becomes empty (the image has no default).\n\n"+
 		"See %s for guidance and edit %s accordingly.\n",
 		envPath, strings.Join(missing, "\n  - "), examplePath, envPath)
