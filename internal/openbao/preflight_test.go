@@ -307,6 +307,31 @@ func TestProbeTokenAuthStatusMapping(t *testing.T) {
 		}
 	})
 
+	t.Run("redirect-not-followed-token-not-leaked", func(t *testing.T) {
+		// A malicious/misconfigured endpoint answering 3xx must not cause the
+		// X-Vault-Token to be forwarded to the redirect target. The probe must
+		// refuse to follow (→ unknown), and the target must receive no request.
+		var leaked int32
+		target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Header.Get("X-Vault-Token") != "" {
+				atomic.AddInt32(&leaked, 1)
+			}
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer target.Close()
+		redirector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, target.URL+"/v1/auth/token/lookup-self", http.StatusFound)
+		}))
+		defer redirector.Close()
+
+		if got := probeTokenAuth(redirector.URL, "secret-root-token"); got != authUnknown {
+			t.Errorf("redirect → %v, want authUnknown (not followed)", got)
+		}
+		if atomic.LoadInt32(&leaked) != 0 {
+			t.Error("X-Vault-Token was forwarded to the redirect target — token leak")
+		}
+	})
+
 	t.Run("transient-then-valid", func(t *testing.T) {
 		var calls int32
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

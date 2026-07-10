@@ -172,7 +172,16 @@ func probeTokenAuth(addr, token string) tokenAuthState {
 // definitive verdict (200 → valid, 401/403 → invalid); every other outcome
 // (5xx/429, timeout, connection error) returns done=false so the caller retries.
 func probeTokenOnce(addr, token string) (state tokenAuthState, done bool) {
-	c := &http.Client{Timeout: 10 * time.Second}
+	// Never follow redirects: this request carries the root token in the
+	// X-Vault-Token header, which Go does NOT strip on a cross-host redirect
+	// (it only strips Authorization/Cookie). A compromised or misconfigured
+	// endpoint answering 3xx must not be able to forward the token elsewhere.
+	// ErrUseLastResponse returns the 3xx as-is (→ treated as a transient, not
+	// a leak). openbao's API never legitimately redirects these endpoints.
+	c := &http.Client{
+		Timeout:       10 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
 	req, err := http.NewRequest(http.MethodGet, strings.TrimRight(addr, "/")+"/v1/auth/token/lookup-self", nil)
 	if err != nil {
 		return authUnknown, true // malformed request won't fix on retry; not an auth failure either
@@ -202,7 +211,10 @@ func probeTokenOnce(addr, token string) (state tokenAuthState, done bool) {
 // the wait keeps a genuinely stuck API from hanging the caller.
 func waitOpenbaoActive(addr string, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
-	c := &http.Client{Timeout: 5 * time.Second}
+	c := &http.Client{
+		Timeout:       5 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
 	url := strings.TrimRight(addr, "/") + "/v1/sys/health"
 	for {
 		if resp, err := c.Get(url); err == nil {
@@ -286,7 +298,15 @@ func Preflight(allowStartOpenbao bool) Result {
 	// tokenValid and be mistaken for a wrong token. If the stack is already up and
 	// active, the first health probe returns immediately (no added latency).
 	if r.Initialized && !r.Sealed {
-		r.Active = waitOpenbaoActive(openbaoAddr, 30*time.Second) == nil
+		// A cold start (run, which just brought openbao up) needs headroom for the
+		// mount-table/leadership transition; a read-only caller (status/info) that
+		// finds openbao already up should not hang 30s when it is up-but-not-active,
+		// so it uses a short bound and reports not-ready instead.
+		gateTimeout := 8 * time.Second
+		if allowStartOpenbao {
+			gateTimeout = 30 * time.Second
+		}
+		r.Active = waitOpenbaoActive(openbaoAddr, gateTimeout) == nil
 		if r.Active && r.EnvToken {
 			switch probeTokenAuth(openbaoAddr, readEnvToken()) {
 			case authValid:
