@@ -47,20 +47,24 @@ volumes:
   # - name: airflow-mysql-volume
   #   persistentVolumeClaim:
   #     claimName: airflow-mysql
-  - name: airflow-mysql-config
-    configMap:
-      name: airflow-mysql
-      items:
-        - key: create_airflow_db.sql
-          path: create_airflow_db.sql
+  # The airflow-mysql-config volume carried files/conf/create_airflow_db.sql, which has been deleted.
+  # The script ran `CREATE DATABASE airflow` (no IF NOT EXISTS) on top of the database the mysql entrypoint
+  # had already created from MYSQL_DATABASE, so initdb failed with ERROR 1007 on an empty data directory.
+  # MYSQL_DATABASE now creates the database and grants it to MYSQL_USER, so no init script is needed.
+  # - name: airflow-mysql-config
+  #   configMap:
+  #     name: airflow-mysql
+  #     items:
+  #       - key: create_airflow_db.sql
+  #         path: create_airflow_db.sql
 
-volumeMounts: 
+volumeMounts:
   # - name: airflow-mysql-volume
   #   mountPath: /var/lib/mysql
-  - name: airflow-mysql-config
-    mountPath: /docker-entrypoint-initdb.d/create_airflow_db.sql
-    subPath: create_airflow_db.sql
-    readOnly: true
+  # - name: airflow-mysql-config
+  #   mountPath: /docker-entrypoint-initdb.d/create_airflow_db.sql
+  #   subPath: create_airflow_db.sql
+  #   readOnly: true
 
 persistence:
   enabled: false

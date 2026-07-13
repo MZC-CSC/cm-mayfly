@@ -21,27 +21,23 @@ spec:
       containers:
       - name: airflow-mysql-init-container
         image: mysql:8.0-debian
-        env: 
+        # MYSQL_DATABASE makes the mysql entrypoint create the database and grant it to MYSQL_USER.
+        # This replaces the create_airflow_db.sql init script, which has been deleted: it issued
+        # `CREATE DATABASE airflow` without IF NOT EXISTS and collided with the database the entrypoint
+        # had already created, failing initdb with ERROR 1007.
+        env:
         - name: MYSQL_ROOT_PASSWORD
           value: airflow_pass
         - name: MYSQL_USER
           value: airflow
         - name: MYSQL_PASSWORD
           value: airflow_pass
+        - name: MYSQL_DATABASE
+          value: airflow
         volumeMounts:
           - name: airflow-mysql-volume
             mountPath: /var/lib/mysql
-          - name: airflow-mysql-config
-            mountPath: /docker-entrypoint-initdb.d/create_airflow_db.sql
-            subPath: create_airflow_db.sql
-            readOnly: true
       volumes:
       - name: airflow-mysql-volume
         persistentVolumeClaim:
           claimName: airflow-mysql
-      - name: airflow-mysql-config
-        configMap:
-          name: airflow-mysql
-          items:
-            - key: create_airflow_db.sql
-              path: create_airflow_db.sql
