@@ -107,7 +107,7 @@ Notes section flags common drift patterns and suggests the matching command
 		fmt.Printf("  cb-tumblebug    : VAULT_TOKEN %s\n", yesNo(s.TumblebugTokenSet, "set", "(empty)"))
 		fmt.Printf("  mc-terrarium    : VAULT_TOKEN %s\n", yesNo(s.TerrariumTokenSet, "set", "(empty)"))
 
-		// State-consistency preflight (BAR-1408): surface the init.json / data
+		// State-consistency preflight: surface the init.json / data
 		// volume / token-validity signals and the overall verdict. Read-only —
 		// never starts openbao.
 		pf := openbao.Preflight(false)

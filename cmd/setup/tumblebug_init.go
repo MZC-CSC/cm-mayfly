@@ -64,7 +64,7 @@ func runTumblebugInit() {
 	// registers credentials against the secret store and silently fails (Phase 1
 	// logs flood with "VAULT_TOKEN is not set") when the running cb-tumblebug
 	// container holds an empty/invalid token. cb-tumblebug is already running
-	// here, so OpenBao is reachable: the shared preflight (BAR-1408) gives an
+	// here, so OpenBao is reachable: the shared preflight gives an
 	// authoritative verdict and, for recoverable states like a lost/invalid
 	// token, tells the user exactly how to restore it — instead of the old
 	// dead-end "VAULT_TOKEN missing" error that couldn't tell those apart.
