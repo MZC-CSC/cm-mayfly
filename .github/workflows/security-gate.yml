@@ -1,9 +1,6 @@
 # ------------------------------------------------------------
 # Security Gate — PR 시점 보안 점검 (시크릿·Go SAST·Go 취약점·의존성/Dockerfile).
 #
-# 표준 원본: https://github.com/MZC-CSC/cmig-workflow/blob/main/conf/workflow-templates/security-gate.yml
-# 정책: https://github.com/MZC-CSC/cmig-workflow/blob/main/POLICY-SECURITY.md
-#
 # cm-mayfly는 바이너리 배포(소스 CI가 컨테이너 이미지를 빌드하지 않음)라 이미지 CVE 게이트는
 # 두지 않고 코드 게이트만 둔다.
 #

@@ -1,6 +1,6 @@
 # gitleaks baseline — 수용된 오탐(false positive). 형식: <file>:<rule>:<line>
 # 신규 실제 시크릿은 계속 차단되고, 아래 항목만 예외 처리된다.
-# 검토일 2026-06-26 (cmig-workflow 보안 게이트 도입). 정책: POLICY-SECURITY.md
+# 검토일 2026-06-26 (보안 게이트 도입).
 
 # 소스 주석/문서의 예시 curl 명령(localhost·예시 자격증명) — 실제 시크릿 아님
 cmd/setup/credential.go:curl-auth-user:9
