@@ -127,6 +127,13 @@ func tumblebugHealthy() bool {
 // the container re-reads .env and costs no data, but mayfly still only advises:
 // a preflight that acts on a wrong verdict is exactly what the guide-only policy
 // exists to prevent.
+//
+// The command has to be the mayfly one. A bare "docker compose -f <file> up -d
+// cb-tumblebug" does NOT work: the compose file declares no project name, so
+// compose derives one from the directory it is invoked in, while mayfly always
+// runs compose as COMPOSE_PROJECT_NAME=cloud-migrator. The user's compose would
+// therefore not recognise the running stack at all and would fail trying to
+// create containers whose names are already taken.
 func containerTokenAdvice() string {
 	return fmt.Sprintf(
 		"cb-tumblebug is running with a stale VAULT_TOKEN.\n"+
@@ -134,6 +141,6 @@ func containerTokenAdvice() string {
 			"  cb-tumblebug reads VAULT_TOKEN once at startup, so a container started before the\n"+
 			"  current token keeps the old one — credential registration then fails silently.\n"+
 			"  Recreate it (no data loss):\n"+
-			"    docker compose -f %s up -d cb-tumblebug",
-		envPath(), common.DefaultDockerComposeConfig)
+			"    ./mayfly infra run -d -s cb-tumblebug",
+		envPath())
 }

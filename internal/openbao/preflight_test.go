@@ -425,8 +425,15 @@ func TestDecideReachableContainerStaleToken(t *testing.T) {
 		if got.Case != CaseContainerStaleToken || got.OK {
 			t.Fatalf("Case=%v OK=%v, want container-stale-token / not OK", got.Case, got.OK)
 		}
-		if !strings.Contains(got.Advice, "up -d cb-tumblebug") {
-			t.Errorf("advice must tell the user to recreate the container, got: %q", got.Advice)
+		// The advice must use mayfly's own command. A bare "docker compose ... up -d
+		// cb-tumblebug" would run under a different compose project than the one
+		// mayfly starts the stack with, and fail on already-taken container names
+		// instead of recreating anything.
+		if !strings.Contains(got.Advice, "./mayfly infra run -d -s cb-tumblebug") {
+			t.Errorf("advice must tell the user to recreate the container with mayfly, got: %q", got.Advice)
+		}
+		if strings.Contains(got.Advice, "docker compose") {
+			t.Errorf("advice must not hand the user a raw compose command (wrong project name), got: %q", got.Advice)
 		}
 	})
 

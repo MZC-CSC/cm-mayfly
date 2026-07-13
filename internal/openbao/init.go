@@ -347,7 +347,7 @@ func Status() StatusInfo {
 		st.Notes = append(st.Notes,
 			"cb-tumblebug has empty VAULT_TOKEN although .env has one — the container "+
 				"was started before .env was populated. Recreate it: "+
-				"docker compose -f "+common.DefaultDockerComposeConfig+" up -d cb-tumblebug.")
+				"./mayfly infra run -d -s cb-tumblebug")
 	} else if st.EnvTokenSet && st.TumblebugTokenSet && tumblebugHealthy() {
 		// The container has *a* token — ask cb-tumblebug whether it still works.
 		// An empty token is not the only way to be stale: a container started
@@ -355,7 +355,7 @@ func Status() StatusInfo {
 		// server can tell us OpenBao rejects it (signal C).
 		if state, info := probeContainerToken(tumblebugAddr, readEnvValue("TB_API_USERNAME"), readEnvValue("TB_API_PASSWORD")); state == containerTokenInvalid {
 			note := "cb-tumblebug holds a VAULT_TOKEN that OpenBao rejects — it was started before the " +
-				"current token. Recreate it: docker compose -f " + common.DefaultDockerComposeConfig + " up -d cb-tumblebug."
+				"current token. Recreate it: ./mayfly infra run -d -s cb-tumblebug"
 			if info.Message != "" {
 				note += " (cb-tumblebug: " + info.Message + ")"
 			}
@@ -364,7 +364,8 @@ func Status() StatusInfo {
 	}
 	if st.EnvTokenSet && !st.TerrariumTokenSet {
 		st.Notes = append(st.Notes,
-			"mc-terrarium has empty VAULT_TOKEN although .env has one — same fix applies as cb-tumblebug.")
+			"mc-terrarium has empty VAULT_TOKEN although .env has one — same fix applies: "+
+				"./mayfly infra run -d -s mc-terrarium")
 	}
 	if st.OpenbaoReachable && !st.OpenbaoInitialized {
 		st.Notes = append(st.Notes,
