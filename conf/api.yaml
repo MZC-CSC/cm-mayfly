@@ -95,7 +95,7 @@ services:
       release: https://raw.githubusercontent.com/cloud-barista/cm-cicada/{release}/pkg/api/rest/docs/swagger.json
 
   cm-honeybee:
-    version: 0.5.2(latest)
+    version: 0.5.3(latest)
     baseurl: http://cm-honeybee:8081/honeybee
     auth:
       type: none
