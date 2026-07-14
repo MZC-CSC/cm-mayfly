@@ -43,14 +43,18 @@ readinessProbe:
   periodSeconds: 10
   timeoutSeconds: 3
 
+# These volumes/volumeMounts apply to the Deployment only. The init Job (templates/job.yaml) has its own
+# volumes and still mounts create_airflow_db.sql, which is correct there: the Job has no MYSQL_DATABASE,
+# so the script is what creates the database.
+#
+# The Deployment is different. It sets MYSQL_DATABASE=airflow (see `env` below), so the mysql entrypoint
+# already creates the database and grants it to MYSQL_USER. Mounting the init script on top of that ran
+# `CREATE DATABASE airflow` (no IF NOT EXISTS) a second time, and initdb died with ERROR 1007 whenever the
+# data directory was empty — which is every pod start here, since the PVC mount below is commented out.
 volumes:
   # - name: airflow-mysql-volume
   #   persistentVolumeClaim:
   #     claimName: airflow-mysql
-  # The airflow-mysql-config volume carried files/conf/create_airflow_db.sql, which has been deleted.
-  # The script ran `CREATE DATABASE airflow` (no IF NOT EXISTS) on top of the database the mysql entrypoint
-  # had already created from MYSQL_DATABASE, so initdb failed with ERROR 1007 on an empty data directory.
-  # MYSQL_DATABASE now creates the database and grants it to MYSQL_USER, so no init script is needed.
   # - name: airflow-mysql-config
   #   configMap:
   #     name: airflow-mysql
