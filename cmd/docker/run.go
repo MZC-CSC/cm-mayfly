@@ -121,16 +121,16 @@ var runCmd = &cobra.Command{
 		// Without this step, cb-tumblebug / mc-terrarium would start with an
 		// empty VAULT_TOKEN frozen into their environment and a `docker
 		// compose restart` after a sidecar init wouldn't re-evaluate .env —
-		// that's the regression we hit on stage (BAR-1291). Only the
+		// that's the regression we hit on staging. Only the
 		// full-stack default path needs this; a targeted `-s` run is left
 		// untouched.
 		//
-		// A shared state-consistency preflight (BAR-1408) decides what to do:
+		// A shared state-consistency preflight decides what to do:
 		// it may start openbao alone to get an authoritative reading. C1 fresh
 		// → auto-init; C2 consistent → skip; any inconsistency (stale token,
 		// wiped storage, invalid token, …) → print the specific remediation and
 		// stop BEFORE starting the rest, so the stack never deadlocks in the
-		// half-up "Created" state the ETRI integration hit.
+		// half-up "Created" state a broken OpenBao would otherwise leave behind.
 		if ServiceName == "" {
 			pf := openbao.Preflight(true) // run may start openbao alone to diagnose
 			switch {

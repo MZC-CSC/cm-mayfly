@@ -16,7 +16,7 @@
 ### Feature
 * cb-spider / cb-tumblebug / mc-terrarium 인증 환경변수(`SPIDER_USERNAME`/`SPIDER_PASSWORD`, `TB_API_*`, `TERRARIUM_API_*`)와 OpenBao 연동(`VAULT_ADDR`/`VAULT_TOKEN`)을 `conf/docker/.env`로 추가 관리
 * `conf/openbao/openbao-config.hcl` 신규 — OpenBao persistent 모드 설정 (KMS Auto-Unseal stanza 주석 예시 포함)
-* `mayfly infra` 하위 명령 실행 직전 `conf/docker/.env`의 필수값을 자체 검증 (FR-04, [BAR-866](https://mzdevs.atlassian.net/browse/BAR-866)). cb-spider 0.12.17의 REST 인증(`SPIDER_USERNAME`/`SPIDER_PASSWORD`)과 5종 DB 비밀번호(`TUMBLEBUG_DB_PASSWORD`, `BUTTERFLY_DB_PASSWORD`, `ANT_DB_PASSWORD`, `AIRFLOW_DB_PASSWORD`, `AIRFLOW_DB_ROOT_PASSWORD`)가 비어 있으면 어떤 키가 누락됐는지 명시한 뒤 docker compose 호출 전에 중단해, 컨테이너가 영문도 모르고 죽는 상황을 막는다.
+* `mayfly infra` 하위 명령 실행 직전 `conf/docker/.env`의 필수값을 자체 검증. cb-spider 0.12.17의 REST 인증(`SPIDER_USERNAME`/`SPIDER_PASSWORD`)과 5종 DB 비밀번호(`TUMBLEBUG_DB_PASSWORD`, `BUTTERFLY_DB_PASSWORD`, `ANT_DB_PASSWORD`, `AIRFLOW_DB_PASSWORD`, `AIRFLOW_DB_ROOT_PASSWORD`)가 비어 있으면 어떤 키가 누락됐는지 명시한 뒤 docker compose 호출 전에 중단해, 컨테이너가 영문도 모르고 죽는 상황을 막는다.
 
 ### Notice
 * cb-spider 0.12.17은 `SPIDER_USERNAME`/`SPIDER_PASSWORD`가 비어있으면 log.Fatal로 컨테이너 기동을 차단합니다. `conf/docker/.env.example`에는 다른 비밀번호 항목과 동일하게 **빈 값**으로 제공되므로, `cp conf/docker/.env.example conf/docker/.env` 후 두 값을 **반드시** 설정해야 합니다. 누락 시 `mayfly infra` 단계에서 위 *Feature*의 필수값 검증이 어떤 키가 비었는지 알려주고 docker compose 호출 전에 중단합니다.

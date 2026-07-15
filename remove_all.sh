@@ -10,7 +10,7 @@
 #   1) mayfly-aware cleanup — `mayfly infra remove --clean-all -y` removes the
 #      mayfly stack, named volumes, host bind data AND clears the .env
 #      VAULT_TOKEN. Without this a stale VAULT_TOKEN survives the wipe and the
-#      next `infra run` skips OpenBao init and deadlocks (BAR-1408 / ETRI).
+#      next `infra run` skips OpenBao init and deadlocks.
 #   2) nuclear cleanup — remove ALL remaining Docker resources on the host,
 #      including those NOT installed through cm-mayfly.
 

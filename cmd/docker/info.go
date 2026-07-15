@@ -17,7 +17,7 @@ import (
 
 // printOpenbaoInfo appends a compact OpenBao consistency section to `infra info`.
 // It reuses the shared preflight (read-only) so the same verdict shown by
-// `setup openbao status` is surfaced here (BAR-1408 follow-up).
+// `setup openbao status` is surfaced here.
 func printOpenbaoInfo() {
 	fmt.Println()
 	fmt.Println("[OpenBao consistency]")
