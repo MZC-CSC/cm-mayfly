@@ -11,13 +11,3 @@ docs/upgrade-cb-tb-0.12.9.md:curl-auth-user:124
 
 # vendored cb-tumblebug 기본 설정의 샘플 JWT(업스트림 기본값, 우리 시크릿 아님)
 conf/docker/conf/cb-tumblebug/conf/grpc_conf.yaml:jwt:26
-
-# vendored cm-cicada airflow 설정의 Task Execution API JWT 서명 키 (업스트림 기본값, 우리 시크릿 아님)
-# cm-cicada v0.5.2(Airflow 3 전환)가 새로 넣은 값으로, cloud-barista/cm-mayfly 공개 저장소에
-# 이미 커밋돼 있어 여기서 가린다고 노출도가 달라지지 않는다. cb-tumblebug grpc_conf.yaml 의
-# 샘플 JWT 와 같은 성격이라 동일하게 baseline 처리한다.
-#
-# 다만 이는 "안전하다"는 판정이 아니라 "업스트림 기본값이라 우리 게이트에서 예외"라는 뜻이다.
-# 최종적으로는 이 값을 cfg 에서 빼고 compose 환경변수로 주입하도록 바꾸고, 그 변경을 업스트림에도
-# 반영하는 것이 목표다 (tech-debt).
-conf/docker/conf/cm-cicada/_airflow/airflow-home/airflow.cfg:generic-api-key:45
