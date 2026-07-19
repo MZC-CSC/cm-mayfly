@@ -918,7 +918,7 @@ services:
   cm-ant:
     container_name: cm-ant
     # image: cloudbaristaorg/cm-ant:edge
-    image: mzccot/cm-ant:20260719135901-feat-ant-loadtest-steps-1553
+    image: mzccot/cm-ant:20260719143716-feat-ant-loadtest-steps-1553
     # image: cloudbaristaorg/cm-ant:0.5.5
     platform: linux/amd64
     pull_policy: always
