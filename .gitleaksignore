@@ -11,3 +11,6 @@ docs/upgrade-cb-tb-0.12.9.md:curl-auth-user:124
 
 # vendored cb-tumblebug 기본 설정의 샘플 JWT(업스트림 기본값, 우리 시크릿 아님)
 conf/docker/conf/cb-tumblebug/conf/grpc_conf.yaml:jwt:26
+
+# 내부 빌드 이미지 태그({빌드시각}-{브랜치})가 엔트로피 때문에 API 키로 오탐된다. 시크릿 아님.
+conf/docker/docker-compose.yaml:generic-api-key:438

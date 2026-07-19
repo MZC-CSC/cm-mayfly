@@ -434,7 +434,10 @@ services:
   # https://hub.docker.com/r/cloudbaristaorg/cm-butterfly-api
   cm-butterfly-api:
     # image: cloudbaristaorg/cm-butterfly-api:edge
-    image: cloudbaristaorg/cm-butterfly-api:0.5.1
+    # image: cloudbaristaorg/cm-butterfly-api:0.5.1
+    image: mzccot/cm-butterfly-api:20260719055320-feat-bf-notify-perf-1544
+    # image: mzccot/cm-butterfly-api:20260719041736-develop
+    # image: dev4unet/cm-butterfly-api:20260715133855-develop  # 2026-07-18 이전본(삭제 추적 엔드포인트 없음)
     # image: csescsta/cm-butterfly-api:20260408145340-develop
     container_name: cm-butterfly-api
     pull_policy: always
@@ -488,7 +491,15 @@ services:
   # https://hub.docker.com/r/cloudbaristaorg/cm-butterfly-front
   cm-butterfly-front:
     # image: cloudbaristaorg/cm-butterfly-front:edge
-    image: cloudbaristaorg/cm-butterfly-front:0.5.1
+    # image: cloudbaristaorg/cm-butterfly-front:0.5.1
+    # image: mzccot/cm-butterfly-front:20260719041736-develop
+    # image: mzccot/cm-butterfly-front:20260719015018-feat-bf-wf-parallel-1454
+    # image: mzccot/cm-butterfly-front:20260719031452-feat-bf-wf-parallel-1454
+    # image: mzccot/cm-butterfly-front:20260719044013-feat-bf-wf-parallel-1454
+    # image: mzccot/cm-butterfly-front:20260719051316-feat-bf-wf-parallel-1454
+    # image: mzccot/cm-butterfly-front:20260719053956-feat-bf-wf-parallel-1454
+    image: mzccot/cm-butterfly-front:20260719055320-feat-bf-notify-perf-1544
+    # image: mzccot/cm-butterfly-front:20260719144735-develop
     # image: csescsta/cm-butterfly-front:edge
     # image: csescsta/cm-butterfly-front:20260408145340-develop
 
@@ -540,6 +551,26 @@ services:
   #     test: [ "CMD", "/app/tool/mayfly", "rest", "get", "http://cm-butterfly-front-dev:80/" ]
   #     #test: [ "CMD", "curl", "-f", "http://localhost:4000/readyz" ]
   #     <<: *default-health-check
+
+  cm-butterfly-front-dev:
+    image: mzccot/cm-butterfly-front:20260718200509-develop
+    container_name: cm-butterfly-front-dev
+    pull_policy: always
+    platform: linux/amd64
+    restart: unless-stopped
+    ports:
+      - target: 80
+        published: 5174
+        protocol: tcp
+    depends_on:
+      cm-butterfly-api:
+        condition: service_healthy
+    volumes:
+      - ./tool/mayfly:/app/tool/mayfly
+      - ./conf/cm-butterfly/front/nginx.conf:/etc/nginx/conf.d/nginx.conf:ro
+    healthcheck:
+      test: [ "CMD", "/app/tool/mayfly", "rest", "get", "http://cm-butterfly-front-dev:80/" ]
+      <<: *default-health-check
 
   # cm-butterfly (db)
   # https://github.com/cloud-barista/cm-butterfly
@@ -887,7 +918,7 @@ services:
   cm-ant:
     container_name: cm-ant
     # image: cloudbaristaorg/cm-ant:edge
-    image: cloudbaristaorg/cm-ant:0.5.4
+    image: cloudbaristaorg/cm-ant:0.5.5
     platform: linux/amd64
     pull_policy: always
     ports:
