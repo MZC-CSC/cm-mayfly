@@ -4,8 +4,9 @@
 
 # 소스 주석/문서의 예시 curl 명령(localhost·예시 자격증명) — 실제 시크릿 아님
 cmd/setup/credential.go:curl-auth-user:9
+cmd/setup/credential.go:curl-auth-user:14
 cmd/setup/credential.go:curl-auth-user:15
-cmd/setup/credential.go:curl-auth-user:299
+cmd/setup/credential.go:curl-auth-user:328
 docs/upgrade-cb-tb-0.12.9.md:curl-auth-user:120
 docs/upgrade-cb-tb-0.12.9.md:curl-auth-user:124
 
