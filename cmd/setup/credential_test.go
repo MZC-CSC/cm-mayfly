@@ -1,6 +1,7 @@
 package setup
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -110,8 +111,12 @@ func TestSendCredentialsUsesConfiguredHostAndAuth(t *testing.T) {
 		t.Errorf("X-Test-Header = %q, want the value passed with -H", gotCustomHeader)
 	}
 
-	// default:default base64 is ZGVmYXVsdDpkZWZhdWx0 — it must no longer be sent
-	if strings.Contains(gotAuth, "ZGVmYXVsdDpkZWZhdWx0") {
+	// The registration call used to carry a fixed default:default header no
+	// matter what the caller configured. Encode it here rather than spelling
+	// the base64 out, so the check reads as "the built-in pair" instead of an
+	// opaque string.
+	builtInPair := base64.StdEncoding.EncodeToString([]byte("default:default"))
+	if strings.Contains(gotAuth, builtInPair) {
 		t.Errorf("Authorization = %q, want the credentials resolved from the flags", gotAuth)
 	}
 	if gotAuth == "" {
