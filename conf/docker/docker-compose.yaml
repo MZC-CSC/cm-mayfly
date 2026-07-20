@@ -381,7 +381,8 @@ services:
   # see conf folder : https://github.com/cloud-barista/cm-beetle/tree/main/conf
   # And remove the conf-related comments in the volumes settings below.
   cm-beetle:
-    image: cloudbaristaorg/cm-beetle:0.5.5
+    # image: cloudbaristaorg/cm-beetle:0.5.5
+    image: cloudbaristaorg/cm-beetle:0.5.6
     container_name: cm-beetle
     pull_policy: always
     platform: linux/amd64
@@ -918,8 +919,9 @@ services:
   cm-ant:
     container_name: cm-ant
     # image: cloudbaristaorg/cm-ant:edge
-    image: mzccot/cm-ant:20260719164759-feat-ant-loadtest-steps-1553
+    # image: mzccot/cm-ant:20260719164759-feat-ant-loadtest-steps-1553
     # image: cloudbaristaorg/cm-ant:0.5.5
+    image: cloudbaristaorg/cm-ant:0.5.6
     platform: linux/amd64
     pull_policy: always
     ports:
