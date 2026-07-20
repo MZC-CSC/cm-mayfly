@@ -13,7 +13,7 @@ func TestMaskSecret(t *testing.T) {
 		{"short values give nothing away", "abcdef", "***"},
 		{"just over the threshold", "abcdefg", "ab***"},
 		{"typical password", "p4ssw0rd-with-more", "p4***"},
-		{"bearer token", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9", "ey***"},
+		{"long opaque token", "ey-token-shaped-value-for-masking-only", "ey***"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := MaskSecret(tc.in); got != tc.want {
@@ -32,7 +32,7 @@ func TestMaskSecretNeverContainsTheWholeValue(t *testing.T) {
 		"short",
 		"abcdefg",
 		"correct-horse-battery-staple",
-		"s.CAESIJq0Vg9pQ0FBQUFBQUFB",
+		"s.vault-token-shaped-value-for-masking-only",
 	} {
 		got := MaskSecret(secret)
 		if got == secret {
