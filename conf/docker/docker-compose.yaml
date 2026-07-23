@@ -317,7 +317,7 @@ services:
   # This sidecar is the default choice that prioritizes operational convenience in
   # workshop, dev, and internal PoC environments; for production-grade deployments
   # we recommend switching to (2) the KMS approach or (1) the manual approach.
-  # For detailed procedures, see docs/upgrade-cb-tb-0.12.9.md.
+  # For detailed procedures, see docs/openbao-unseal.md.
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   openbao-unseal:
     image: alpine:3.20
