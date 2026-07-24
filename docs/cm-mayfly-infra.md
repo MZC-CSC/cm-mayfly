@@ -110,14 +110,19 @@ $ ./mayfly infra run -d
 $ ./mayfly infra run -s cb-tumblebug
 ```
 
-여러 프레임워크를 동시에 실행하고 싶은 경우:
+여러 프레임워크를 동시에 실행하고 싶은 경우 — 아래 세 형식은 모두 같은 서비스를 선택합니다:
 ```bash
+# -s 를 반복해서 지정
+$ ./mayfly infra run -s cb-tumblebug -s cb-spider
+
 # 공백으로 구분
 $ ./mayfly infra run -s "cb-tumblebug cb-spider"
 
-# 콤마로 구분 (자동으로 공백으로 변환됨)
+# 콤마로 구분
 $ ./mayfly infra run -s "cb-tumblebug,cb-spider"
 ```
+
+> `-s` 를 아예 생략하면 전체 서비스가 대상입니다. 존재하지 않는 서비스명을 지정하면 그 이름을 지목해 알리고 중단합니다.
 
 ## Cloud-Migrator 실행상태 확인
 설치된 인프라 및 서브 프레임워크들의 상태를 확인할 수 있습니다.
@@ -131,8 +136,8 @@ $ ./mayfly infra info
 - `-a, --all`: 모든 컨테이너 상태 표시 (실행 중인 컨테이너뿐만 아니라 중지된 컨테이너도 포함)
   - **주의**: 완전히 삭제된 컨테이너는 표시되지 않습니다
 - `-s, --service`: 특정 서비스만 대상으로 지정 (여러 서비스 지정 가능)
-  - **지원 형식**: 공백 또는 콤마로 구분
-  - **예시**: `-s "cb-tumblebug cb-spider"` 또는 `-s "cb-tumblebug,cb-spider"`
+  - **지원 형식**: `-s` 반복 지정, 공백 구분, 콤마 구분 (혼용 가능)
+  - **예시**: `-s cb-tumblebug -s cb-spider` 또는 `-s "cb-tumblebug cb-spider"` 또는 `-s "cb-tumblebug,cb-spider"`
   - **의존성 자동 포함**: 지정된 서비스의 의존성 서비스들도 함께 표시  
 - `-u, --human`: 인간이 이해하기 쉬운 서비스 상태 테이블 표시
   - **특징**: docker-compose.yaml에 정의된 모든 서비스의 상태를 표 형태로 표시
@@ -310,7 +315,7 @@ Legend:
 - **버전 정보**: 각 서비스의 버전을 한눈에 확인 가능
 - **의존성 파악**: `-s` 옵션과 함께 사용 시 서비스 간 의존성 관계를 명확히 표시
 - **서비스 분류**: 요청된 서비스와 의존성 서비스를 구분하여 표시
-- **유연한 서비스 지정**: 공백 또는 콤마로 여러 서비스를 동시에 지정 가능
+- **유연한 서비스 지정**: `-s` 반복 지정·공백·콤마로 여러 서비스를 동시에 지정 가능
 
 
 ## Cloud-Migrator 업데이트
