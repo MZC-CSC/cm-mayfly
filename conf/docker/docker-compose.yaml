@@ -317,7 +317,7 @@ services:
   # This sidecar is the default choice that prioritizes operational convenience in
   # workshop, dev, and internal PoC environments; for production-grade deployments
   # we recommend switching to (2) the KMS approach or (1) the manual approach.
-  # For detailed procedures, see docs/upgrade-cb-tb-0.12.9.md.
+  # For detailed procedures, see docs/openbao-unseal.md.
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   openbao-unseal:
     image: alpine:3.20
@@ -434,7 +434,7 @@ services:
   # https://hub.docker.com/r/cloudbaristaorg/cm-butterfly-api
   cm-butterfly-api:
     # image: cloudbaristaorg/cm-butterfly-api:edge
-    image: cloudbaristaorg/cm-butterfly-api:0.5.1
+    image: cloudbaristaorg/cm-butterfly-api:0.5.2
     # image: csescsta/cm-butterfly-api:20260408145340-develop
     container_name: cm-butterfly-api
     pull_policy: always
@@ -488,7 +488,7 @@ services:
   # https://hub.docker.com/r/cloudbaristaorg/cm-butterfly-front
   cm-butterfly-front:
     # image: cloudbaristaorg/cm-butterfly-front:edge
-    image: cloudbaristaorg/cm-butterfly-front:0.5.1
+    image: cloudbaristaorg/cm-butterfly-front:0.5.2
     # image: csescsta/cm-butterfly-front:edge
     # image: csescsta/cm-butterfly-front:20260408145340-develop
 
@@ -896,7 +896,7 @@ services:
   cm-ant:
     container_name: cm-ant
     # image: cloudbaristaorg/cm-ant:edge
-    image: cloudbaristaorg/cm-ant:0.5.4
+    image: cloudbaristaorg/cm-ant:0.5.7
     platform: linux/amd64
     pull_policy: always
     ports:
