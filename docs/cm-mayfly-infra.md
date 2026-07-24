@@ -95,6 +95,8 @@ $ ./mayfly infra run
 
 전체 스택(서비스 미지정)으로 실행하는 경우, 다른 서비스를 기동하기 전에 OpenBao 상태 정합성 preflight가 먼저 수행됩니다. `.env`에 `VAULT_TOKEN`이 없는 최초 구축이면 OpenBao를 자동으로 초기화(`VAULT_TOKEN` 기록)한 뒤 나머지 서비스를 올리고, 상태가 일치하면 그대로 진행합니다. 토큰이 남아 있으나 저장소와 어긋나는 등 불일치가 감지되면 안내 메시지를 출력하고 **나머지 서비스를 기동하지 않은 채 중단**하므로, 안내에 따라 조치한 뒤 다시 실행하세요. OpenBao 운영에 대한 자세한 내용은 [openbao-unseal.md](./openbao-unseal.md)를 참고하세요.
 
+`-s`로 특정 서비스만 부분 기동하는 경우에는 OpenBao를 자동 초기화하지 않습니다. 다만 대상 서비스가 OpenBao를 사용하면(compose에서 `VAULT_*`를 참조 — 예: cb-tumblebug·mc-terrarium) **읽기 전용으로 OpenBao 상태를 먼저 확인**해, 사용할 수 없는 상태면 `mayfly setup openbao init`(OpenBao만 초기화) 또는 전체 `mayfly infra run`을 안내하고 **기동하지 않고 중단**합니다(초기화되지 않은 OpenBao에 붙어 첫 시크릿 조회에서 실패하는 것을 막습니다). OpenBao를 사용하지 않는 서비스는 이 검사를 거치지 않습니다. `infra update -s`도 동일하게 동작합니다.
+
 만약, Cloud-Migrator 시스템을 구축하려는 시스템 환경이 Clean한 환경이 아니라서 `./mayfly infra run` 명령만으로는 제대로 실행되지 않는 설치 문제가 발생할 경우에는 [Docker 전체 환경 정리](#docker-전체-환경-정리) 섹션의 내용을 확인해서 시스템 환경을 먼저 깔끔하게 정리 후 실행하는 것을 추천드립니다.   
 
 
