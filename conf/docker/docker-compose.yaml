@@ -7,8 +7,11 @@
 x-default-logging: &default-logging
   driver: json-file
   options:
-    max-size: ${LOG_MAX_SIZE:-20m}
-    max-file: "${LOG_MAX_FILE:-3}"
+    max-size: ${LOG_MAX_SIZE:-50m}
+    max-file: "${LOG_MAX_FILE:-10}"
+    # Rotated files are compressed - log text packs down by roughly ten to one,
+    # so a long history costs much less disk than the sizes above suggest.
+    compress: "true"
 
 x-default-health-check: &default-health-check
   interval: 30s # run the health check every 30s
