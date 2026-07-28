@@ -2,6 +2,14 @@
 # docker image : https://hub.docker.com/u/cloudbaristaorg
 
 # Default health check configuration
+# Container output is capped so a long-running lineup cannot fill the disk.
+# Sizes come from .env - see "Logs kept on disk" there.
+x-default-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: ${LOG_MAX_SIZE:-20m}
+    max-file: "${LOG_MAX_FILE:-3}"
+
 x-default-health-check: &default-health-check
   interval: 30s # run the health check every 30s
   timeout: 5s # timeout for each health check command (5s)
@@ -23,6 +31,7 @@ services:
     image: cloudbaristaorg/cb-spider:0.12.35
     pull_policy: always
     container_name: cb-spider
+    logging: *default-logging
     restart: unless-stopped
     platform: linux/amd64
     networks:
@@ -58,6 +67,7 @@ services:
   cb-tumblebug:
     image: cloudbaristaorg/cb-tumblebug:0.12.25
     container_name: cb-tumblebug
+    logging: *default-logging
     restart: unless-stopped
     pull_policy: always
     platform: linux/amd64
@@ -128,6 +138,7 @@ services:
   cb-tumblebug-etcd:
     image: gcr.io/etcd-development/etcd:v3.6.11
     container_name: cb-tumblebug-etcd
+    logging: *default-logging
     restart: unless-stopped
     networks:
       - default
@@ -178,6 +189,7 @@ services:
   cb-tumblebug-postgres:
     image: postgres:16-alpine
     container_name: cb-tumblebug-postgres
+    logging: *default-logging
     restart: always
     networks:
       - spider_net
@@ -202,6 +214,7 @@ services:
   cb-mapui:
     image: cloudbaristaorg/cb-mapui:0.12.50
     container_name: cb-mapui
+    logging: *default-logging
     restart: unless-stopped
     pull_policy: always
     ports:
@@ -222,6 +235,7 @@ services:
   mc-terrarium:
     image: cloudbaristaorg/mc-terrarium:0.1.4
     container_name: mc-terrarium
+    logging: *default-logging
     restart: unless-stopped
     pull_policy: always
     platform: linux/amd64
@@ -258,6 +272,7 @@ services:
   openbao:
     image: openbao/openbao:2.5.1
     container_name: openbao
+    logging: *default-logging
     restart: unless-stopped
     cap_add:
       - IPC_LOCK
@@ -322,6 +337,7 @@ services:
   openbao-unseal:
     image: alpine:3.20
     container_name: openbao-unseal
+    logging: *default-logging
     restart: unless-stopped # auto-unseal watcher — keeps OpenBao unsealed
     networks:
       - default
@@ -383,6 +399,7 @@ services:
   cm-beetle:
     image: cloudbaristaorg/cm-beetle:0.5.6
     container_name: cm-beetle
+    logging: *default-logging
     pull_policy: always
     platform: linux/amd64
     restart: unless-stopped
@@ -436,6 +453,7 @@ services:
     image: cloudbaristaorg/cm-butterfly-api:0.5.3
     # image: cloudbaristaorg/cm-butterfly-api:edge
     container_name: cm-butterfly-api
+    logging: *default-logging
     pull_policy: always
     platform: linux/amd64
     restart: unless-stopped
@@ -490,6 +508,7 @@ services:
     # image: cloudbaristaorg/cm-butterfly-front:edge
 
     container_name: cm-butterfly-front
+    logging: *default-logging
     pull_policy: always
     platform: linux/amd64
     restart: unless-stopped
@@ -523,6 +542,7 @@ services:
   # https://github.com/cloud-barista/cm-butterfly/blob/main/api/.env.sample to .env
   cm-butterfly-db:
     container_name: cm-butterfly-db
+    logging: *default-logging
     image: postgres:14-alpine
     restart: unless-stopped
     # networks:
@@ -550,6 +570,7 @@ services:
     # image: cloudbaristaorg/cm-honeybee:edge
     image: cloudbaristaorg/cm-honeybee:0.5.3
     container_name: cm-honeybee
+    logging: *default-logging
     pull_policy: always
     platform: linux/amd64
     restart: unless-stopped
@@ -573,6 +594,7 @@ services:
     # image: cloudbaristaorg/cm-damselfly:edge
     image: cloudbaristaorg/cm-damselfly:0.5.3
     container_name: cm-damselfly
+    logging: *default-logging
     pull_policy: always
     platform: linux/amd64
     restart: unless-stopped
@@ -603,6 +625,7 @@ services:
     # image: cloudbaristaorg/cm-cicada:edge
     image: cloudbaristaorg/cm-cicada:0.5.2
     container_name: cm-cicada
+    logging: *default-logging
     pull_policy: always
     restart: unless-stopped
     ports:
@@ -649,6 +672,7 @@ services:
   # reference : https://github.com/cloud-barista/cm-cicada/blob/main/_airflow/docker-compose.yml
   airflow-redis:
     container_name: airflow-redis
+    logging: *default-logging
     image: redis:7.2-alpine
     command: redis-server --requirepass airflow_pass --port 6379
     restart: unless-stopped
@@ -667,9 +691,13 @@ services:
   airflow-mysql:
     container_name: airflow-mysql
     image: mysql:8.0-debian
+    # Binary log setting comes from .env - off by default, since nothing here
+    # replicates or recovers to a point in time. See "Logs kept on disk" there.
+    command: ["mysqld", "${AIRFLOW_DB_BINLOG_ARGS:---skip-log-bin}"]
     cap_add:
       - SYS_NICE
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "3306:3306"
     # Block external access and allow access only from within the container
@@ -705,6 +733,7 @@ services:
     # build:
     #     context: ./conf/cm-cicada/_airflow ## build Docker file location
     container_name: airflow-server
+    logging: *default-logging
     # image: cloudbaristaorg/airflow-server:edge
     image: cloudbaristaorg/airflow-server:0.5.2
     restart: unless-stopped
@@ -813,6 +842,7 @@ services:
     # image: cloudbaristaorg/cm-grasshopper:edge
     image: cloudbaristaorg/cm-grasshopper:0.5.2
     container_name: cm-grasshopper
+    logging: *default-logging
     pull_policy: always
     restart: unless-stopped
     ports:
@@ -854,6 +884,7 @@ services:
   cm-grasshopper-rustfs:
     image: rustfs/rustfs:latest
     container_name: cm-grasshopper-rustfs
+    logging: *default-logging
     pull_policy: always
     restart: unless-stopped
     user: "0:0"
@@ -875,6 +906,7 @@ services:
   # https://hub.docker.com/r/cloudbaristaorg/cm-ant
   cm-ant:
     container_name: cm-ant
+    logging: *default-logging
     # image: cloudbaristaorg/cm-ant:edge
     image: cloudbaristaorg/cm-ant:0.5.7
     platform: linux/amd64
@@ -927,6 +959,7 @@ services:
   ant-postgres:
     image: timescale/timescaledb:latest-pg16
     container_name: ant-postgres
+    logging: *default-logging
     ports:
       - "5432:5432"
     environment:
