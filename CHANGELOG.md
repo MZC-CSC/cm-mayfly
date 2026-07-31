@@ -1,5 +1,9 @@
-# Unreleased
+# v0.6.0
 ### Changelog
+* Move every C-Mig framework in the lineup to `0.6.0` — cm-beetle, cm-butterfly (api and front), cm-honeybee, cm-damselfly, cm-cicada, airflow-server, cm-grasshopper and cm-ant. The Cloud-Barista components keep their own versioning: cb-tumblebug `0.12.25`, cb-spider `0.12.35`, cb-mapui `0.12.50`, mc-terrarium `0.1.4`. `conf/api.yaml` follows the same set.
+* Cap the logs a running stack writes. MySQL binary logging is off by default — `airflow-mysql` is a single instance with no replication, point-in-time recovery or change-data-capture to replay it — and container log size and file count are set, both configurable from `.env`. A lineup left running had filled a disk until image pulls began to fail.
+* Drop the bundled cb-tumblebug assets under `conf/docker/conf/cb-tumblebug/assets/` (33 files, about 33 MB). Both images already ship those files, so the copy added nothing, and the Spider half of it was older than the image it was meant for.
+* `infra update` now updates only the services its version check found stale, instead of restarting everything. Floating tags are compared by digest.
 * feat(docker): manage shared docker-compose env vars via a single conf/docker/.env file
   * Credentials, DB settings, SMTP, and log levels are now injected through `${VAR}` interpolation from `conf/docker/.env` instead of being hardcoded inline or spread across per-service env_file files.
   * Added `conf/docker/.env.example` template and gitignored the real `conf/docker/.env`.
