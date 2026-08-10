@@ -571,7 +571,7 @@ services:
   # See https://github.com/cloud-barista/cm-honeybee/blob/main/server/docker-compose.yaml
   cm-honeybee:
     # image: cloudbaristaorg/cm-honeybee:edge
-    image: cloudbaristaorg/cm-honeybee:0.5.9
+    image: cloudbaristaorg/cm-honeybee:0.5.10
     container_name: cm-honeybee
     logging: *default-logging
     pull_policy: always
@@ -589,21 +589,14 @@ services:
       openbao-honeybee:
         condition: service_healthy
     environment:
-      # cm-honeybee reads all config from native env vars (HONEYBEE_*, since
-      # v0.5.7), so no cm-honeybee.yaml needs to be mounted/managed here.
-      # cb-spider Basic Auth — kept in sync with cb-spider via the shared .env.
+      # cm-honeybee reads its config from these env vars (no mounted yaml).
+      # cb-spider Basic Auth — kept in sync via the shared .env.
       - HONEYBEE_SPIDER_ENDPOINT=http://cb-spider:1024/spider
       - HONEYBEE_SPIDER_USERNAME=${SPIDER_USERNAME}
       - HONEYBEE_SPIDER_PASSWORD=${SPIDER_PASSWORD}
-      # Secrets backend: SSH access secrets + CSP credentials are stored in
-      # cm-honeybee's OWN dedicated OpenBao (below), not the shared stack OpenBao.
-      # SQLite no longer holds secrets (cm-honeybee >=0.5.5).
+      # cm-honeybee self-manages OpenBao (init/unseal/KV-enable); the unseal key +
+      # root token are stored RSA-encrypted in its DB.
       - HONEYBEE_VAULT_ADDR=http://openbao-honeybee:8200
-      # Self-manage OpenBao: cm-honeybee runs init/unseal/KV-enable itself and
-      # stores the unseal key + root token under its data dir
-      # (/root/.cm-honeybee/openbao-init.json). No init sidecar, no token mount —
-      # it recovers on its own after host reboots / volume loss (>=0.5.9).
-      - HONEYBEE_VAULT_MANAGE=true
     volumes:
       - ./tool/mayfly:/app/tool/mayfly
       - ./data/cm-honeybee/:/root/.cm-honeybee/:rw
@@ -612,9 +605,8 @@ services:
       <<: *default-health-check
 
   # openbao-honeybee
-  # Dedicated OpenBao for cm-honeybee (separate from the shared stack `openbao`).
-  # Stores cm-honeybee's SSH access secrets + CSP credentials (KV v2). cm-honeybee
-  # performs init/unseal/KV-enable itself (HONEYBEE_VAULT_MANAGE=true) — no sidecar.
+  # Dedicated OpenBao for cm-honeybee's SSH access secrets + CSP credentials
+  # (KV v2). cm-honeybee performs init/unseal/KV-enable itself — no init sidecar.
   openbao-honeybee:
     image: openbao/openbao:2.5.1
     container_name: openbao-honeybee
