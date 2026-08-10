@@ -571,7 +571,7 @@ services:
   # See https://github.com/cloud-barista/cm-honeybee/blob/main/server/docker-compose.yaml
   cm-honeybee:
     # image: cloudbaristaorg/cm-honeybee:edge
-    image: cloudbaristaorg/cm-honeybee:0.5.6
+    image: cloudbaristaorg/cm-honeybee:0.5.7
     container_name: cm-honeybee
     logging: *default-logging
     pull_policy: always
@@ -586,36 +586,36 @@ services:
       - default
     depends_on:
       # Wait until cm-honeybee's DEDICATED OpenBao is initialized/unsealed.
-      honeybee-openbao-init:
+      openbao-honeybee-init:
         condition: service_healthy
     environment:
-      # cm-honeybee calls cb-spider with Basic Auth; the mounted
-      # conf/cm-honeybee/cm-honeybee.yaml references these via ${VAR} so the
-      # credentials stay in sync with cb-spider (cm-honeybee 0.5.4+).
-      - SPIDER_USERNAME=${SPIDER_USERNAME}
-      - SPIDER_PASSWORD=${SPIDER_PASSWORD}
+      # cm-honeybee reads all config from native env vars (HONEYBEE_*, since
+      # v0.5.7), so no cm-honeybee.yaml needs to be mounted/managed here.
+      # cb-spider Basic Auth — kept in sync with cb-spider via the shared .env.
+      - HONEYBEE_SPIDER_ENDPOINT=http://cb-spider:1024/spider
+      - HONEYBEE_SPIDER_USERNAME=${SPIDER_USERNAME}
+      - HONEYBEE_SPIDER_PASSWORD=${SPIDER_PASSWORD}
       # Secrets backend: SSH access secrets + CSP credentials are stored in
       # cm-honeybee's OWN dedicated OpenBao (below), not the shared stack OpenBao.
-      # SQLite no longer holds secrets (cm-honeybee edge/>=0.5.5).
-      - HONEYBEE_VAULT_ADDR=http://honeybee-openbao:8200
+      # SQLite no longer holds secrets (cm-honeybee >=0.5.5).
+      - HONEYBEE_VAULT_ADDR=http://openbao-honeybee:8200
       - HONEYBEE_VAULT_TOKEN_FILE=/run/openbao/honeybee.token
     volumes:
       - ./tool/mayfly:/app/tool/mayfly
       - ./data/cm-honeybee/:/root/.cm-honeybee/:rw
-      - ./conf/cm-honeybee/cm-honeybee.yaml:/conf/cm-honeybee.yaml:ro
       # Read-only access to the dedicated OpenBao's published token.
-      - ./data/honeybee-openbao/secrets:/run/openbao:ro
+      - ./data/openbao-honeybee/secrets:/run/openbao:ro
     healthcheck:
       test: ["CMD", "/app/tool/mayfly", "rest", "get", "http://cm-honeybee:8081/honeybee/readyz"]
       <<: *default-health-check
 
-  # honeybee-openbao
+  # openbao-honeybee
   # Dedicated OpenBao for cm-honeybee (separate from the shared stack `openbao`).
   # Stores cm-honeybee's SSH access secrets + CSP credentials (KV v2). Self-managed
-  # init/unseal via the honeybee-openbao-init sidecar (no `mayfly` tool needed).
-  honeybee-openbao:
+  # init/unseal via the openbao-honeybee-init sidecar (no `mayfly` tool needed).
+  openbao-honeybee:
     image: openbao/openbao:2.5.1
-    container_name: honeybee-openbao
+    container_name: openbao-honeybee
     logging: *default-logging
     restart: unless-stopped
     cap_add:
@@ -631,9 +631,9 @@ services:
         chown -R openbao:openbao /openbao/data 2>/dev/null || true
         exec docker-entrypoint.sh server -config=/openbao/config/openbao-config.hcl
     volumes:
-      - ./data/honeybee-openbao/data:/openbao/data
-      - ./data/honeybee-openbao/secrets:/openbao/secrets
-      - ./conf/honeybee-openbao/openbao-config.hcl:/openbao/config/openbao-config.hcl:ro
+      - ./data/openbao-honeybee/data:/openbao/data
+      - ./data/openbao-honeybee/secrets:/openbao/secrets
+      - ./conf/openbao-honeybee/openbao-config.hcl:/openbao/config/openbao-config.hcl:ro
     healthcheck:
       test: ["CMD", "sh", "-c", "rc=0; bao status || rc=$$?; [ $$rc -le 2 ]"]
       interval: 10s
@@ -641,28 +641,33 @@ services:
       retries: 5
       start_period: 5s
 
-  # honeybee-openbao-init: initialize + unseal + KV enable, then auto-unseal watcher.
-  honeybee-openbao-init:
+  # openbao-honeybee-init: initialize + unseal + KV enable, then auto-unseal watcher.
+  openbao-honeybee-init:
     image: openbao/openbao:2.5.1
-    container_name: honeybee-openbao-init
+    container_name: openbao-honeybee-init
     logging: *default-logging
     restart: unless-stopped
     networks:
       - default
     depends_on:
-      honeybee-openbao:
+      openbao-honeybee:
         condition: service_healthy
     environment:
-      - BAO_ADDR=http://honeybee-openbao:8200
+      - BAO_ADDR=http://openbao-honeybee:8200
     entrypoint: ["sh", "/openbao/openbao-init.sh"]
     volumes:
-      - ./data/honeybee-openbao/secrets:/openbao/secrets
-      - ./conf/honeybee-openbao/openbao-init.sh:/openbao/openbao-init.sh:ro
+      - ./data/openbao-honeybee/secrets:/openbao/secrets
+      - ./conf/openbao-honeybee/openbao-init.sh:/openbao/openbao-init.sh:ro
     healthcheck:
-      test: ["CMD", "sh", "-c", "test -f /openbao/secrets/honeybee.token"]
-      interval: 10s
+      # Healthy only when OpenBao is actually UNSEALED (bao status rc 0) AND the
+      # token is published — not just token-file existence. OpenBao comes up
+      # SEALED after every restart and the token file survives from the previous
+      # boot, so gating on unseal is what stops cm-honeybee from starting against
+      # a still-sealed OpenBao (avoids transient secret-op failures on restart).
+      test: ["CMD", "sh", "-c", "bao status >/dev/null 2>&1 && test -f /openbao/secrets/honeybee.token"]
+      interval: 5s
       timeout: 5s
-      retries: 30
+      retries: 60
       start_period: 5s
 
   # cm-damselfly
