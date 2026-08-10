@@ -571,7 +571,7 @@ services:
   # See https://github.com/cloud-barista/cm-honeybee/blob/main/server/docker-compose.yaml
   cm-honeybee:
     # image: cloudbaristaorg/cm-honeybee:edge
-    image: cloudbaristaorg/cm-honeybee:0.5.5
+    image: cloudbaristaorg/cm-honeybee:0.5.6
     container_name: cm-honeybee
     logging: *default-logging
     pull_policy: always
