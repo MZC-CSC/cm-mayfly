@@ -20,6 +20,12 @@ func printOpenbaoInfo() {
 	fmt.Println()
 	fmt.Println("[OpenBao consistency]")
 	fmt.Println(openbao.CompactStatus())
+
+	// Instances the stack carries beyond the primary one (openbao-honeybee and
+	// any future openbao-*). They are self-managed by their owning service, so
+	// only their reachability and seal state are reported — see
+	// openbao_instances.go.
+	printOpenbaoInstancesInfo()
 }
 
 // openbaoRelevant reports whether the OpenBao consistency section is worth
