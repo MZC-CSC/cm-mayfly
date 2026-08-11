@@ -30,8 +30,9 @@ var expectedComposeCategories = map[string]string{
 	"airflow-mysql":  CategoryWorkflow,
 	"airflow-redis":  CategoryWorkflow,
 
-	"openbao":        CategorySecrets,
-	"openbao-unseal": CategorySecrets,
+	"openbao":          CategorySecrets,
+	"openbao-unseal":   CategorySecrets,
+	"openbao-honeybee": CategorySecrets,
 
 	"cb-tumblebug-etcd":     CategoryDataStores,
 	"cb-tumblebug-postgres": CategoryDataStores,

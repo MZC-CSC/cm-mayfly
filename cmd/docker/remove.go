@@ -17,9 +17,41 @@ import (
 // it can wipe host data by simply listing that directory, with OpenBao as the
 // only exception that --clean-db keeps. See the FR-MM1-CLI-003-02 design.
 const (
-	hostDataDirName = "data"    // directory under the compose file dir
-	openbaoDirName  = "openbao" // single exception preserved by --clean-db
+	hostDataDirName = "data" // directory under the compose file dir
+	// openbaoDirName is the shared OpenBao whose data --clean-db keeps. It backs
+	// cb-tumblebug's credential store, holds its own unseal key under
+	// data/openbao/secrets/, and its contents (secret/csp/<provider>) stand on
+	// their own — nothing else has to exist for them to be usable again.
+	// Recreating them means decrypting the stored credential archive and running
+	// tumblebug-init, which is exactly the work --clean-db is meant to save.
+	openbaoDirName = "openbao"
 )
+
+// openbaoCompanionDirs maps a service to the OpenBao data directory that
+// belongs to it — an OpenBao only that service uses, holding only that
+// service's secrets.
+//
+// cm-honeybee is the only service with one today (openbao-honeybee, for the
+// secrets of the sources it collects), so the pair is listed explicitly rather
+// than derived from the service name.
+//
+// A companion is wiped together with its owner rather than preserved, for two
+// reasons:
+//
+//   - Its contents are keyed by the owner's rows (secret/honeybee/csp/<sgId>,
+//     secret/honeybee/ssh/<connId>), so dropping the owner's database leaves
+//     secrets that reference source groups which no longer exist.
+//   - The unseal key lives in the owner's database, not beside the store.
+//     Keeping the store while dropping the owner leaves an initialized OpenBao
+//     that cannot be opened: not initialized again because it already is, not
+//     unsealed because the key is gone. cm-honeybee documents that state as
+//     unrecoverable short of deleting the volume by hand.
+//
+// Preserving a companion therefore saves nothing and prevents the owner from
+// initializing an empty store on its next start.
+var openbaoCompanionDirs = map[string]string{
+	"cm-honeybee": "openbao-honeybee",
+}
 
 // removeDocsLink points to the user guide section describing the remove
 // command. It is appended to every command-definition message.
@@ -85,7 +117,8 @@ This cannot be undone.
 
   Removed   containers, project network, images,
             and every conf/docker/data/* directory (DB contents, service state)
-  Kept      conf/docker/data/openbao/ — OpenBao credentials
+  Kept      conf/docker/data/openbao/ — shared OpenBao credentials
+            (a service's own OpenBao goes with that service)
 
 Use --clean-all to remove the OpenBao credentials as well.
 
@@ -140,8 +173,8 @@ By default only containers and the project network are removed; images and the
 host data under conf/docker/data/ are kept (equivalent to 'docker compose down').
 
   --clean-db   Also remove the images and the host data under
-               conf/docker/data/* (except openbao). OpenBao credentials kept.
-  --clean-all  Everything --clean-db removes, plus the openbao host data and the
+               conf/docker/data/* (except the shared openbao). Its credentials kept.
+  --clean-all  Everything --clean-db removes, plus the shared openbao host data and the
                VAULT_TOKEN entry in .env. A full re-initialization follows.
   -s, --service <name>  Target specific services only; the others keep running
                and the project network is preserved. With --clean-db it also
@@ -426,9 +459,12 @@ func buildComposeCommands(services []string) [][]string {
 // hostDataTargets returns the host directories to wipe for the requested scope.
 //
 //   - default (no --clean-db/--clean-all): nothing is wiped.
-//   - --clean-db whole system: every conf/docker/data/* directory except openbao.
-//   - --clean-all whole system: every conf/docker/data/* directory (openbao included).
-//   - -s <svc> with --clean-db: only conf/docker/data/<svc>/ for each service.
+//   - --clean-db whole system: every conf/docker/data/* directory except the
+//     shared openbao. Companion instances (openbao-<service>) go with their
+//     services.
+//   - --clean-all whole system: every conf/docker/data/* directory.
+//   - -s <svc> with --clean-db: conf/docker/data/<svc>/ and, when present,
+//     conf/docker/data/openbao-<svc>/.
 //
 // Listing the data directory means new services are handled automatically once
 // their data lands under conf/docker/data/<service>/ (host data aggregation).
@@ -443,12 +479,34 @@ func hostDataTargets(services []string) ([]string, error) {
 		// Service-scoped wipe only applies under --clean-db (validated above to
 		// be incompatible with --clean-all).
 		var targets []string
+		seen := map[string]bool{}
 		for _, s := range services {
-			target := filepath.Join(dataRoot, s)
-			if err := assertUnderDataRoot(dataRoot, target); err != nil {
-				return nil, err
+			// A service takes its companion OpenBao with it: the secrets in
+			// there are keyed by this service's rows, and the unseal key that
+			// opens them lives in this service's data. See
+			// openbaoCompanionDirs.
+			names := []string{s}
+			if companion, ok := openbaoCompanionDirs[s]; ok {
+				names = append(names, companion)
 			}
-			targets = append(targets, target)
+			for _, name := range names {
+				if seen[name] {
+					continue
+				}
+				dir := filepath.Join(dataRoot, name)
+				if name != s {
+					// The companion directory only exists once that service has
+					// run, so a missing one is normal, not an error.
+					if _, err := os.Stat(dir); err != nil {
+						continue
+					}
+				}
+				if err := assertUnderDataRoot(dataRoot, dir); err != nil {
+					return nil, err
+				}
+				seen[name] = true
+				targets = append(targets, dir)
+			}
 		}
 		return targets, nil
 	}
@@ -465,8 +523,11 @@ func hostDataTargets(services []string) ([]string, error) {
 		if !e.IsDir() {
 			continue
 		}
+		// Only the shared instance survives --clean-db. Companions
+		// (openbao-<service>) go with the services they belong to, and a
+		// whole-system wipe takes every service.
 		if !cleanAllFlag && e.Name() == openbaoDirName {
-			continue // --clean-db preserves OpenBao credentials
+			continue
 		}
 		target := filepath.Join(dataRoot, e.Name())
 		if err := assertUnderDataRoot(dataRoot, target); err != nil {
@@ -580,8 +641,8 @@ func init() {
 	dockerCmd.AddCommand(removeCmd)
 
 	pf := removeCmd.PersistentFlags()
-	pf.BoolVar(&cleanDBFlag, "clean-db", false, "Also remove the images and the host data under conf/docker/data/* (except openbao). With -s, scoped to the named services. OpenBao credentials preserved")
-	pf.BoolVar(&cleanAllFlag, "clean-all", false, "Everything --clean-db removes, plus openbao host data and the .env VAULT_TOKEN (full reset)")
+	pf.BoolVar(&cleanDBFlag, "clean-db", false, "Also remove the images and the host data under conf/docker/data/* (except the shared openbao). With -s, scoped to the named services and their own OpenBao")
+	pf.BoolVar(&cleanAllFlag, "clean-all", false, "Everything --clean-db removes, plus the shared openbao host data and the .env VAULT_TOKEN (full reset)")
 	pf.BoolVarP(&yesFlag, "yes", "y", false, "Skip the confirmation prompt")
 	pf.BoolVar(&dryRunFlag, "dry-run", false, "Print the commands that would run, without executing them")
 
