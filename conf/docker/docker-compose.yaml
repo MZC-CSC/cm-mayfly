@@ -571,7 +571,7 @@ services:
   # See https://github.com/cloud-barista/cm-honeybee/blob/main/server/docker-compose.yaml
   cm-honeybee:
     # image: cloudbaristaorg/cm-honeybee:edge
-    image: cloudbaristaorg/cm-honeybee:0.5.4
+    image: cloudbaristaorg/cm-honeybee:0.5.11
     container_name: cm-honeybee
     logging: *default-logging
     pull_policy: always
@@ -581,14 +581,60 @@ services:
       # 8081 : Server / 8082 : Agent
       - "8081:8081"
       #- "8082:8082"
-    # depends_on:
-    #   - cm-honeybee-agent
+    networks:
+      - spider_net
+      - default
+    depends_on:
+      # Only needs OpenBao running; cm-honeybee initializes/unseals it itself.
+      openbao-honeybee:
+        condition: service_healthy
+    environment:
+      # cm-honeybee reads its config from these env vars (no mounted yaml).
+      # cb-spider Basic Auth — kept in sync via the shared .env.
+      - HONEYBEE_SPIDER_ENDPOINT=http://cb-spider:1024/spider
+      - HONEYBEE_SPIDER_USERNAME=${SPIDER_USERNAME}
+      - HONEYBEE_SPIDER_PASSWORD=${SPIDER_PASSWORD}
+      # cm-honeybee self-manages OpenBao (init/unseal/KV-enable); the unseal key +
+      # root token are stored RSA-encrypted in its DB.
+      - HONEYBEE_VAULT_ADDR=http://openbao-honeybee:8200
     volumes:
       - ./tool/mayfly:/app/tool/mayfly
       - ./data/cm-honeybee/:/root/.cm-honeybee/:rw
     healthcheck:
       test: ["CMD", "/app/tool/mayfly", "rest", "get", "http://cm-honeybee:8081/honeybee/readyz"]
       <<: *default-health-check
+
+  # openbao-honeybee
+  # Dedicated OpenBao for cm-honeybee's SSH access secrets + CSP credentials
+  # (KV v2). cm-honeybee performs init/unseal/KV-enable itself — no init sidecar.
+  openbao-honeybee:
+    image: openbao/openbao:2.5.1
+    container_name: openbao-honeybee
+    logging: *default-logging
+    restart: unless-stopped
+    cap_add:
+      - IPC_LOCK
+    networks:
+      - default
+    environment:
+      - BAO_ADDR=http://0.0.0.0:8200
+      - SKIP_SETCAP=true
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        chown -R openbao:openbao /openbao/data 2>/dev/null || true
+        exec docker-entrypoint.sh server -config=/openbao/config/openbao-config.hcl
+    volumes:
+      - ./data/openbao-honeybee/data:/openbao/data
+      - ./conf/openbao-honeybee/openbao-config.hcl:/openbao/config/openbao-config.hcl:ro
+    healthcheck:
+      # 0=unsealed, 1=sealed, 2=uninitialized — all mean "running"; cm-honeybee
+      # does the init/unseal, so "running" is enough to depend on.
+      test: ["CMD", "sh", "-c", "rc=0; bao status || rc=$$?; [ $$rc -le 2 ]"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
   # cm-damselfly
   # https://github.com/cloud-barista/cm-damselfly
@@ -626,7 +672,7 @@ services:
   # **important** : The cm-beetle, cm-grasshopper, and airflow-server containers must be in a readyz state and running beforehand
   cm-cicada:
     # image: cloudbaristaorg/cm-cicada:edge
-    image: cloudbaristaorg/cm-cicada:0.5.2
+    image: cloudbaristaorg/cm-cicada:0.5.3
     container_name: cm-cicada
     logging: *default-logging
     pull_policy: always
@@ -738,7 +784,7 @@ services:
     container_name: airflow-server
     logging: *default-logging
     # image: cloudbaristaorg/airflow-server:edge
-    image: cloudbaristaorg/airflow-server:0.5.2
+    image: cloudbaristaorg/airflow-server:0.5.3
     restart: unless-stopped
     environment:
       # SMTP settings (managed centrally in the host .env)
