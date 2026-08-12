@@ -39,7 +39,7 @@
 # =============================================================================
 services:
   cb-spider: #service name
-    version: 0.12.35(latest)
+    version: 0.12.42(latest)
     baseurl: http://cb-spider:1024/spider # baseurl is Scheme + Host + Base Path
     auth: # cb-spider 0.12.17+ requires REST auth; credentials are read from the env (see header).
       type: basic
@@ -50,7 +50,7 @@ services:
       release: https://raw.githubusercontent.com/cloud-barista/cb-spider/{release}/api/swagger.json
 
   cb-tumblebug:
-    version: 0.12.25(latest)
+    version: 0.12.30(latest)
     baseurl: http://cb-tumblebug:1323/tumblebug
     auth:
       type: basic
@@ -68,7 +68,7 @@ services:
       latest: https://raw.githubusercontent.com/cloud-barista/cm-ant/main/api/swagger.json
       release: https://raw.githubusercontent.com/cloud-barista/cm-ant/{release}/api/swagger.json
   cm-beetle:
-    version: 0.5.9(latest)
+    version: 0.5.10(latest)
     baseurl: http://cm-beetle:8056/beetle
     auth:
       type: basic
@@ -88,7 +88,7 @@ services:
       type: none
       
   cm-cicada:
-    version: 0.5.2(latest)
+    version: 0.5.3(latest)
     baseurl: http://cm-cicada:8083/cicada
     auth:
       type: none
@@ -97,7 +97,7 @@ services:
       release: https://raw.githubusercontent.com/cloud-barista/cm-cicada/{release}/pkg/api/rest/docs/swagger.json
 
   cm-honeybee:
-    version: 0.5.4(latest)
+    version: 0.5.11(latest)
     baseurl: http://cm-honeybee:8081/honeybee
     auth:
       type: none
@@ -106,7 +106,7 @@ services:
       release: https://raw.githubusercontent.com/cloud-barista/cm-honeybee/{release}/server/pkg/api/rest/docs/swagger.json
 
   cm-honeybee-agent:
-    version: 0.5.4(latest)
+    version: 0.5.11(latest)
     baseurl: http://cm-honeybee:8082/honeybee-agent
     auth:
       type: none
@@ -124,7 +124,7 @@ services:
       release: https://raw.githubusercontent.com/cloud-barista/cm-grasshopper/{release}/pkg/api/rest/docs/swagger.json
 
   cm-damselfly:
-    version: 0.6.0(latest)
+    version: 0.6.1(latest)
     baseurl: http://cm-damselfly:8088/damselfly
     auth: # cm-damselfly checks these only when DAMSELFLY_API_AUTH_ENABLED=true; otherwise they are ignored.
       type: basic
@@ -240,6 +240,10 @@ serviceActions:
       method: get
       resourcePath: /countrdbms
       description: "Get the total number of RDBMS instances across all connections."
+    Count-All-S3-Bucket:
+      method: get
+      resourcePath: /counts3
+      description: "Get the total number of S3 Buckets registered across all connections. (CB-Spider special feature)"
     Count-All-Securitygroup:
       method: get
       resourcePath: /countsecuritygroup
@@ -400,6 +404,10 @@ serviceActions:
       method: delete
       resourcePath: /csprdbms/{Id}
       description: "Delete a specified CSP RDBMS."
+    Delete-Csp-S3-Bucket:
+      method: delete
+      resourcePath: /csps3/{Id}
+      description: "Delete a specified CSP S3 Bucket directly from the CSP without affecting CB-Spider metadata. (CB-Spider special feature)"
     Delete-Csp-Securitygroup:
       method: delete
       resourcePath: /cspsecuritygroup/{Id}
@@ -711,7 +719,7 @@ serviceActions:
     List-All-Disk-Info:
       method: get
       resourcePath: /alldiskinfo
-      description: "Retrieve a list of all Disk information associated with all connections."
+      description: "Retrieve a comprehensive list of all Disk information associated with a specific connection, <br> including those mapped between CB-Spider and the CSP, <br> only registered in CB-Spider's metadata, <br> and only existing in the CSP."
     List-All-Keypair:
       method: get
       resourcePath: /allkeypair
@@ -719,7 +727,7 @@ serviceActions:
     List-All-Keypair-Info:
       method: get
       resourcePath: /allkeypairinfo
-      description: "Retrieve a list of KeyPair information associated with all connections."
+      description: "Retrieve a comprehensive list of all KeyPair information associated with a specific connection, <br> including those mapped between CB-Spider and the CSP, <br> only registered in CB-Spider's metadata, <br> and only existing in the CSP."
     List-All-Myimage:
       method: get
       resourcePath: /allmyimage
@@ -743,7 +751,15 @@ serviceActions:
     List-All-Rdbms-Info:
       method: get
       resourcePath: /allrdbmsinfo
-      description: "Retrieve a list of all RDBMS information associated with all connections."
+      description: "Retrieve a comprehensive list of all RDBMS information associated with a specific connection, <br> including those mapped between CB-Spider and the CSP, <br> only registered in CB-Spider's metadata, <br> and only existing in the CSP."
+    List-All-S3-Bucket:
+      method: get
+      resourcePath: /alls3
+      description: "Retrieve a comprehensive list of all S3 Buckets associated with a specific connection, <br> including those mapped between CB-Spider and the CSP, <br> only registered in CB-Spider's metadata, <br> and only existing in the CSP. (CB-Spider special feature)"
+    List-All-S3-Bucket-Info:
+      method: get
+      resourcePath: /alls3info
+      description: "Retrieve detailed info of all S3 Buckets associated with a specific connection, <br> including those mapped between CB-Spider and the CSP, <br> only registered in CB-Spider's metadata, <br> and only existing in the CSP. (CB-Spider special feature)"
     List-All-Securitygroup:
       method: get
       resourcePath: /allsecuritygroup
@@ -751,7 +767,7 @@ serviceActions:
     List-All-Securitygroup-Info:
       method: get
       resourcePath: /allsecuritygroupinfo
-      description: "Retrieve a list of Security Group information associated with all connections."
+      description: "Retrieve a comprehensive list of all Security Group information associated with a specific connection, <br> including those mapped between CB-Spider and the CSP, <br> only registered in CB-Spider's metadata, <br> and only existing in the CSP."
     List-All-Vm:
       method: get
       resourcePath: /allvm
@@ -980,6 +996,10 @@ serviceActions:
       method: post
       resourcePath: /region
       description: "Register a new Region. 🕷️ [[User Guide](https://github.com/cloud-barista/cb-spider/wiki/features-and-usages#3-cloud-regionzone-%EC%A0%95%EB%B3%B4-%EB%93%B1%EB%A1%9D-%EB%B0%8F-%EA%B4%80%EB%A6%AC)]"
+    Register-S3-Bucket:
+      method: post
+      resourcePath: /regs3
+      description: "Register an existing CSP S3 bucket into CB-Spider metadata with a user-defined name. (CB-Spider special feature)"
     Register-Securitygroup:
       method: post
       resourcePath: /regsecuritygroup
@@ -1088,6 +1108,10 @@ serviceActions:
       method: delete
       resourcePath: /region/{RegionName}
       description: "Unregister a specific Region."
+    Unregister-S3-Bucket:
+      method: delete
+      resourcePath: /regs3/{Name}
+      description: "Remove an S3 bucket mapping from CB-Spider metadata without deleting it from the CSP. (CB-Spider special feature)"
     Unregister-Securitygroup:
       method: delete
       resourcePath: /regsecuritygroup/{Name}
@@ -1169,10 +1193,6 @@ serviceActions:
       method: put
       resourcePath: /ns/{nsId}/resources/objectStorage
       description: "Create an object storage (bucket)"
-    CreateObjectStorageLagacy:
-      method: put
-      resourcePath: /resources/objectStorage/{objectStorageName}
-      description: "(To be deprecated) Create an object storage (bucket)\n\n**Important Notes:**\n- The `objectStorageName` must be globally unique across all existing buckets in the S3 compatible storage.\n- The bucket namespace is shared by all users of the system."
     CreateOrUpdateLabel:
       method: put
       resourcePath: /label/{labelType}/{uid}
@@ -1216,7 +1236,7 @@ serviceActions:
     DelAllSharedResources:
       method: delete
       resourcePath: /ns/{nsId}/sharedResources
-      description: "Delete all Default Resource Objects in the given namespace"
+      description: "Release auto-generated resources that are no longer referenced: shared resources\nnamed \"{nsId}-shared-...\" (SecurityGroup, SSHKey, vNet) and per-Infra dedicated\nSecurityGroups that became orphaned after their Infra was deleted. Only resources\nwith no associated objects are removed; user-created or in-use resources are kept.\nUse dryRun=true to preview what would be released without deleting anything."
     DelAllSshKey:
       method: delete
       resourcePath: /ns/{nsId}/resources/sshKey
@@ -1276,11 +1296,11 @@ serviceActions:
     DelSubnet:
       method: delete
       resourcePath: /ns/{nsId}/resources/vNet/{vNetId}/subnet/{subnetId}
-      description: "Delete Subnet\n---\n**action options:**\n\n**reconcile** – Synchronize Tumblebug metadata with the actual CSP state.\nChecks whether the Subnet resource still exists on CSP (via Spider).\nIf the CSP resource is gone, removes the orphaned Tumblebug metadata.\nIf the CSP resource still exists, keeps the metadata intact.\nUse this to clean up stale metadata after system errors or partial failures.\n(e.g., `DELETE /ns/{nsId}/resources/vNet/{vNetId}/subnet/{subnetId}?action=reconcile`)\n\n**force** – Force-delete the Subnet on CSP (passes `?force=true` to Spider).\nUse this when normal deletion fails due to CSP-side constraints (e.g., resource in use).\n(e.g., `DELETE /ns/{nsId}/resources/vNet/{vNetId}/subnet/{subnetId}?action=force`)"
+      description: "Delete Subnet\n---\n**action options:**\n\n**reconcile** – (To be deprecated: Use PUT /ns/{nsId}/resources/vNet/{vNetId}/reconcile instead) Synchronize Tumblebug metadata with the actual CSP state.\nChecks whether the Subnet resource still exists on CSP (via Spider).\nIf the CSP resource is gone, removes the orphaned Tumblebug metadata.\nIf the CSP resource still exists, keeps the metadata intact.\nUse this to clean up stale metadata after system errors or partial failures.\n(e.g., `DELETE /ns/{nsId}/resources/vNet/{vNetId}/subnet/{subnetId}?action=reconcile` - To be deprecated)\n\n**force** – Force-delete the Subnet on CSP (passes `?force=true` to Spider).\nUse this when normal deletion fails due to CSP-side constraints (e.g., resource in use).\n(e.g., `DELETE /ns/{nsId}/resources/vNet/{vNetId}/subnet/{subnetId}?action=force`)"
     DelVNet:
       method: delete
       resourcePath: /ns/{nsId}/resources/vNet/{vNetId}
-      description: "Delete VNet\n---\n**action options:**\n\n**withsubnets** – Delete the VNet together with all its subnets in a single call.\n\n**reconcile** – Synchronize Tumblebug metadata with the actual CSP state.\nChecks whether the VNet/Subnet resource still exists on CSP (via Spider).\nIf the CSP resource is gone, removes the orphaned Tumblebug metadata.\nIf the CSP resource still exists, keeps the metadata intact.\nUse this to clean up stale metadata after system errors or partial failures.\n(e.g., `DELETE /ns/{nsId}/resources/vNet/{vNetId}?action=reconcile`)\n\n**force** – Force-delete the VNet and its subnets on CSP (passes `?force=true` to Spider).\nUse this when normal deletion fails due to CSP-side constraints (e.g., resource in use).\n(e.g., `DELETE /ns/{nsId}/resources/vNet/{vNetId}?action=force`)"
+      description: "Delete VNet\n---\n**action options:**\n\n**withsubnets** – Delete the VNet together with all its subnets in a single call.\n\n**reconcile** – (To be deprecated: Use PUT /ns/{nsId}/resources/vNet/{vNetId}/reconcile instead) Synchronize Tumblebug metadata with the actual CSP state.\nChecks whether the VNet/Subnet resource still exists on CSP (via Spider).\nIf the CSP resource is gone, removes the orphaned Tumblebug metadata.\nIf the CSP resource still exists, keeps the metadata intact.\nUse this to clean up stale metadata after system errors or partial failures.\n(e.g., `DELETE /ns/{nsId}/resources/vNet/{vNetId}?action=reconcile` - To be deprecated)\n\n**force** – Force-delete the VNet and its subnets on CSP (passes `?force=true` to Spider).\nUse this when normal deletion fails due to CSP-side constraints (e.g., resource in use).\n(e.g., `DELETE /ns/{nsId}/resources/vNet/{vNetId}?action=force`)"
     DeleteAllInfraDynamicTemplate:
       method: delete
       resourcePath: /ns/{nsId}/template/infra
@@ -1309,10 +1329,6 @@ serviceActions:
       method: delete
       resourcePath: /ns/{nsId}/resources/objectStorage/{osId}/object/{objectKey}
       description: "Delete an object from an object storage (bucket)"
-    DeleteDataObjectLagacy:
-      method: delete
-      resourcePath: /resources/objectStorage/{objectStorageName}/{objectKey}
-      description: "(To be deprecated) Delete an object from a bucket"
     DeleteDeregisterSubnet:
       method: delete
       resourcePath: /ns/{nsId}/deregisterResource/vNet/{vNetId}/subnet/{subnetId}
@@ -1341,10 +1357,6 @@ serviceActions:
       method: delete
       resourcePath: /ns/{nsId}/k8sCluster/{k8sClusterId}/k8sNodeGroup/{k8sNodeGroupName}
       description: "Remove a K8sNodeGroup"
-    DeleteMultipleDataObjectsLagacy:
-      method: post
-      resourcePath: /resources/objectStorage/{objectStorageName}
-      description: "(To be deprecated) `Delete` multiple objects from a bucket\n\n**Important Notes:**\n- The request body must contain the list of objects to delete in XML format\n- The `delete` query parameter must be set to `true`\n\n**Request Body Example:**\n```xml\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Delete xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\">\n<Object>\n<Key>test-object1.txt</Key>\n</Object>\n<Object>\n<Key>test-object2.txt</Key>\n</Object>\n</Delete>\n```\n\n**Actual XML Response Example:**\n```xml\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<DeleteResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\">\n<Deleted>\n<Key>test-object1.txt</Key>\n</Deleted>\n<Deleted>\n<Key>test-object2.txt</Key>\n</Deleted>\n</DeleteResult>\n```"
     DeleteNodeCommandStatus:
       method: delete
       resourcePath: /ns/{nsId}/infra/{infraId}/node/{nodeId}/commandStatus/{index}
@@ -1365,14 +1377,6 @@ serviceActions:
       method: delete
       resourcePath: /ns/{nsId}/resources/objectStorage/{osId}/cors
       description: "Delete all CORS rules of an object storage (bucket)"
-    DeleteObjectStorageCORSLagacy:
-      method: delete
-      resourcePath: /resources/objectStorage/{objectStorageName}/cors
-      description: "(To be deprecated) Delete CORS configuration of an object storage (bucket)"
-    DeleteObjectStorageLagacy:
-      method: delete
-      resourcePath: /resources/objectStorage/{objectStorageName}
-      description: "(To be deprecated) Delete an object storage (bucket)"
     DeleteObjects:
       method: delete
       resourcePath: /objects
@@ -1401,10 +1405,6 @@ serviceActions:
       method: delete
       resourcePath: /ns/{nsId}/infra/{infraId}/vpn/{vpnId}
       description: "Delete a site-to-site VPN\n\n- Note: A one-time retry is performed to handle transient failures caused by CSP-internal timing issues between dependent resources.\n\n**Query option:**\n\n| option | Description |\n|--------|-------------|\n| (none) | Standard delete via Terrarium. |\n| `reconcile` | Do not call the Terrarium delete API. Instead, check whether the Terrarium resource actually exists. If it is missing, remove orphaned Tumblebug metadata. If it exists but the metadata is stuck in a terminal-failure state (e.g., `Failed(DeletionFailed)`), restore the status to `Available`. Returns a reconcile result object instead of a normal delete response. |"
-    DeleteSqlDb:
-      method: delete
-      resourcePath: /ns/{nsId}/resources/sqlDb/{sqlDbId}
-      description: "Delete a SQL datatbase"
     DeleteVNetTemplate:
       method: delete
       resourcePath: /ns/{nsId}/template/vNet/{templateId}
@@ -1413,10 +1413,6 @@ serviceActions:
       method: delete
       resourcePath: /ns/{nsId}/resources/objectStorage/{osId}/versions/{objectKey}
       description: "Delete a specific version of an object in an object storage (bucket)\n\n**Note: **\n- If no version is specified, we will define how it behaves and update it when necessary.\n"
-    DeleteVersionedObjectLagacy:
-      method: delete
-      resourcePath: /resources/objectStorage/{objectStorageName}/versions/{objectKey}
-      description: "(To be deprecated) Delete a specific version of an object in an object storage (bucket)"
     DeregisterCustomImage:
       method: delete
       resourcePath: /ns/{nsId}/deregisterResource/customImage/{customImageId}
@@ -1437,10 +1433,6 @@ serviceActions:
       method: delete
       resourcePath: /ns/{nsId}/deregisterResource/sshKey/{sshKeyId}
       description: "Deregister SSH Key from Spider and TB without deleting the actual CSP resource"
-    ExistObjectStorageLagacy:
-      method: head
-      resourcePath: /resources/objectStorage/{objectStorageName}
-      description: "(To be deprecated) Check existence of an object storage (bucket)"
     FetchImages:
       method: post
       resourcePath: /fetchImages
@@ -1465,18 +1457,10 @@ serviceActions:
       method: post
       resourcePath: /forward/{path}
       description: "Forward any (GET) request to CB-Spider"
-    GeneratePresignedDownloadURLLagacy:
-      method: get
-      resourcePath: /resources/objectStorage/presigned/download/{objectStorageName}/{objectKey}
-      description: "(To be deprecated) Generate a presigned URL for downloading an object from a bucket\n\n**Important Notes:**\n- The actual response will be XML format with root element `PresignedURLResult`\n- The `expires` query parameter specifies the expiration time in seconds for the presigned URL (default: 3600 seconds)\n- The generated presigned URL can be used to download the object directly without further authentication\n\n**Actual XML Response Example:**\n```xml\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<PresignedURLResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\">\n<PresignedURL>https://globally-unique-bucket-hctdx3.s3.dualstack.ap-southeast-2.amazonaws.com/test-file.txt?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIA***EXAMPLE%2F20250904%2Fap-southeast-2%2Fs3%2Faws4_request&X-Amz-Date=20250904T061448Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=***-signature</PresignedURL>\n<Expires>3600</Expires>\n<Method>GET</Method>\n</PresignedURLResult>\n```"
     GeneratePresignedURL:
       method: post
       resourcePath: /ns/{nsId}/resources/objectStorage/{osId}/object/{objectKey}/presignedUrl
       description: "Generate a presigned URL for uploading  or downloading an object to an object storage (bucket)\n\n**Important Notes:**\n- The generated presigned URL can be used to upload the object directly without further authentication\n- The expiration time is specified in seconds (default: 3600 seconds)\n\n**Example Usage: Upload**\n```bash\n# Using the presigned URL to upload a file\ncurl -i -H \"Content-Type: text/plain\" -X PUT \"<PRESIGNED_URL>\" --data-binary \"@local-file.txt\"\n```\n\n**Example Usage: download**\n```bash\n# Using the presigned URL to download a file\ncurl -X GET \"<PRESIGNED_URL>\" -o downloaded-file.txt\n```"
-    GeneratePresignedUploadURLLagacy:
-      method: get
-      resourcePath: /resources/objectStorage/presigned/upload/{objectStorageName}/{objectKey}
-      description: "(To be deprecated) Generate a presigned URL for uploading an object to a bucket\n\n**Important Notes:**\n- The actual response will be XML format with root element `PresignedURLResult`\n- The `expires` query parameter specifies the expiration time in seconds for the presigned URL (default: 3600 seconds)\n- The generated presigned URL can be used to upload the object directly without further authentication\n\n**Actual XML Response Example:**\n```xml\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<PresignedURLResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\">\n<PresignedURL>https://globally-unique-bucket-hctdx3.s3.dualstack.ap-southeast-2.amazonaws.com/test-file.txt?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIA***EXAMPLE%2F20250904%2Fap-southeast-2%2Fs3%2Faws4_request&X-Amz-Date=20250904T061448Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=***-signature</PresignedURL>\n<Expires>3600</Expires>\n<Method>PUT</Method>\n</PresignedURLResult>\n```"
     GetAllBenchmark:
       method: post
       resourcePath: /ns/{nsId}/benchmarkAll/infra/{infraId}
@@ -1521,6 +1505,14 @@ serviceActions:
       method: get
       resourcePath: /ns/{nsId}/infra/{infraId}/nlb
       description: "List all NLBs or NLBs' ID"
+    GetAllNLBInNs:
+      method: get
+      resourcePath: /ns/{nsId}/resources/nlb
+      description: "List all NLBs in a namespace regardless of the Infra they belong to. Each item carries its parent infraId.\nThis is a read-only listing; create/delete an NLB through /ns/{nsId}/infra/{infraId}/nlb.\nWith option=id, each entry is \"{infraId}/{nlbId}\" because an NLB id is only unique within its Infra."
+    GetAllNodeInNs:
+      method: get
+      resourcePath: /ns/{nsId}/resources/node
+      description: "List all Nodes in a namespace regardless of the Infra they belong to. Each item carries its parent infraId.\nThis is a read-only listing; create/delete a Node through /ns/{nsId}/infra/{infraId}/node.\nWith option=id, each entry is \"{infraId}/{nodeId}\" because a Node id is only unique within its Infra."
     GetAllNs:
       method: get
       resourcePath: /ns
@@ -1541,10 +1533,6 @@ serviceActions:
       method: get
       resourcePath: /ns/{nsId}/infra/{infraId}/vpn
       description: "Get all site-to-site VPNs"
-    GetAllSqlDb:
-      method: get
-      resourcePath: /ns/{nsId}/resources/sqlDb
-      description: "Get all SQL Databases (TBD)"
     GetAllSshKey:
       method: get
       resourcePath: /ns/{nsId}/resources/sshKey
@@ -1645,10 +1633,6 @@ serviceActions:
       method: head
       resourcePath: /ns/{nsId}/resources/objectStorage/{osId}/object/{objectKey}
       description: "Get object info from an object storage (bucket)\n\n**Important Notes:**\n- This API retrieves the metadata of an object without downloading the actual content\n- Returns metadata in response headers (Content-Length, Content-Type, ETag, Last-Modified)"
-    GetDataObjectInfoLagacy:
-      method: head
-      resourcePath: /resources/objectStorage/{objectStorageName}/{objectKey}
-      description: "(To be deprecated) Get an object info from a bucket\n\n**Important Notes:**\n- The generated `Download file` link in Swagger UI may not work because this API get the object metadata only."
     GetExecutionTask:
       method: get
       resourcePath: /ns/{nsId}/cmd/infra/{infraId}/task/{taskId}
@@ -1749,6 +1733,10 @@ serviceActions:
       method: get
       resourcePath: /ns/{nsId}/benchmarkLatency/infra/{infraId}
       description: "Run Infra benchmark for network latency"
+    GetLivez:
+      method: get
+      resourcePath: /livez
+      description: "Check Tumblebug server process is alive (liveness probe). Always returns 200 while the process is running."
     GetMonitorData:
       method: get
       resourcePath: /ns/{nsId}/monitoring/infra/{infraId}/metric/{metric}
@@ -1797,22 +1785,10 @@ serviceActions:
       method: get
       resourcePath: /ns/{nsId}/resources/objectStorage/{osId}/cors
       description: "Get CORS configuration of an object storage (bucket)"
-    GetObjectStorageCORSLagacy:
-      method: get
-      resourcePath: /resources/objectStorage/{objectStorageName}/cors
-      description: "(To be deprecated) Get CORS configuration of an object storage (bucket)\n\n**Important Notes:**\n- The actual response will be XML format with root element `CORSConfiguration`\n\n**Actual XML Response Example:**\n```xml\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CORSConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\">\n<CORSRule>\n<AllowedOrigin>*</AllowedOrigin>\n<AllowedMethod>GET</AllowedMethod>\n<AllowedMethod>PUT</AllowedMethod>\n<AllowedMethod>POST</AllowedMethod>\n<AllowedMethod>DELETE</AllowedMethod>\n<AllowedHeader>*</AllowedHeader>\n<ExposeHeader>ETag</ExposeHeader>\n<ExposeHeader>x-amz-server-side-encryption</ExposeHeader>\n<ExposeHeader>x-amz-request-id</ExposeHeader>\n<ExposeHeader>x-amz-id-2</ExposeHeader>\n<MaxAgeSeconds>3000</MaxAgeSeconds>\n</CORSRule>\n</CORSConfiguration>\n```\n\n**Error Response Example (if CORS not configured):**\n```xml\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error>\n<Code>NoSuchCORSConfiguration</Code>\n<Message>The CORS configuration does not exist</Message>\n<Resource>/example-bucket</Resource>\n<RequestId>656c76696e6727732072657175657374</RequestId>\n</Error>\n```"
-    GetObjectStorageLagacy:
-      method: get
-      resourcePath: /resources/objectStorage/{objectStorageName}
-      description: "(To be deprecated) Get details of an object storage (bucket)\n\n**Important Notes:**\n- The actual response will be XML format with root element `ListBucketResult`\n\n**Actual XML Response Example:**\n```xml\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\">\n<Name>spider-test-bucket</Name>\n<Prefix></Prefix>\n<Marker></Marker>\n<MaxKeys>1000</MaxKeys>\n<IsTruncated>false</IsTruncated>\n</ListBucketResult>\n```"
     GetObjectStorageLocation:
       method: get
       resourcePath: /ns/{nsId}/resources/objectStorage/{osId}/location
       description: "Get the location of an object storage (bucket)"
-    GetObjectStorageLocationLagacy:
-      method: get
-      resourcePath: /resources/objectStorage/{objectStorageName}/location
-      description: "(To be deprecated) Get the location of an object storage (bucket)\n\n**Important Notes:**\n- The actual response will be XML format with root element `LocationConstraint`\n\n**Actual XML Response Example:**\n```xml\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<LocationConstraint xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\">ap-northeast-2</LocationConstraint>\n```"
     GetObjectStorageSupport:
       method: get
       resourcePath: /objectStorage/support
@@ -1821,10 +1797,6 @@ serviceActions:
       method: get
       resourcePath: /ns/{nsId}/resources/objectStorage/{osId}/versioning
       description: "Get versioning configuration of an object storage (bucket)"
-    GetObjectStorageVersioningLagacy:
-      method: get
-      resourcePath: /resources/objectStorage/{objectStorageName}/versioning
-      description: "(To be deprecated) Get versioning status of an object storage (bucket)\n\n**Important Notes:**\n- The actual response will be XML format with root element `VersioningConfiguration`\n\n**Actual XML Response Example:**\n```xml\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<VersioningConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\">\n<Status>Enabled</Status>\n</VersioningConfiguration>\n```"
     GetObjects:
       method: get
       resourcePath: /objects
@@ -1845,10 +1817,14 @@ serviceActions:
       method: get
       resourcePath: /credential/publicKey
       description: "Generates an RSA key pair using a 4096-bit key size with the RSA algorithm. The public key is generated using the RSA algorithm with OAEP padding and SHA-256 as the hash function. This key is used to encrypt an AES key that will be used for hybrid encryption of credentials."
+    GetRDBMSSupport:
+      method: get
+      resourcePath: /rdbms/support
+      description: "Get CSP support metadata and capabilities for RDBMS engines (e.g., mysql, mariadb, postgresql)\nQuery parameters can be filtered by providerName, regionName, or dbEngine."
     GetReadyz:
       method: get
       resourcePath: /readyz
-      description: "Check Tumblebug is ready. Returns ready status and initialization status."
+      description: "Check Tumblebug is ready. Returns ready status and initialization status. With TB_READYZ_CHECK_DEPS=true, also verifies etcd/PostgreSQL connectivity."
     GetRegion:
       method: get
       resourcePath: /provider/{providerName}/region/{regionName}
@@ -1901,10 +1877,6 @@ serviceActions:
       method: get
       resourcePath: /ns/{nsId}/resources/spec/{specId}
       description: "Get spec"
-    GetSqlDb:
-      method: get
-      resourcePath: /ns/{nsId}/resources/sqlDb/{sqlDbId}
-      description: "Get resource info of a SQL datatbase"
     GetSshKey:
       method: get
       resourcePath: /ns/{nsId}/resources/sshKey/{sshKeyId}
@@ -1953,18 +1925,10 @@ serviceActions:
       method: get
       resourcePath: /ns/{nsId}/resources/objectStorage
       description: "Get the list of object storages (buckets)\n\n**Filtering with filterKey and filterVal:**\nBoth parameters perform a case-insensitive substring match against the stored JSON of each resource.\nA resource is included in the result only when its JSON contains **both** the filterKey string and the filterVal string.\n\nCommon filterKey examples:\n- `connectionName` — filter by cloud connection (e.g. filterVal: `aws-ap-northeast-2`)\n- `status`         — filter by resource status  (e.g. filterVal: `Available`)"
-    ListObjectStoragesLagacy:
-      method: get
-      resourcePath: /resources/objectStorage
-      description: "(To be deprecated) Get the list of all object storages (buckets)\n\n**Important Notes:**\n- The actual response will be XML format with root element `ListAllMyBucketsResult`\n- The response includes xmlns attribute: `xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"`\n- Swagger UI may show `resource.ListAllMyBucketsResult` due to rendering limitations\n\n**Actual XML Response Example:**\n```xml\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListAllMyBucketsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\">\n<Owner>\n<ID>aws-ap-northeast-2</ID>\n<DisplayName>aws-ap-northeast-2</DisplayName>\n</Owner>\n<Buckets>\n</Buckets>\n</ListAllMyBucketsResult>\n```"
     ListObjectVersions:
       method: get
       resourcePath: /ns/{nsId}/resources/objectStorage/{osId}/versions
       description: "List all versions of objects in an object storage (bucket)"
-    ListObjectVersionsLagacy:
-      method: get
-      resourcePath: /resources/objectStorage/{objectStorageName}/versions
-      description: "(To be deprecated) List object versions in an object storage (bucket)\n\n**Important Notes:**\n- The actual response will be XML format with root element `ListVersionsResult`\n\n**Actual XML Response Example:**\n```xml\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListVersionsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\">\n<Name>spider-test-bucket</Name>\n<Prefix></Prefix>\n<KeyMarker></KeyMarker>\n<VersionIdMarker></VersionIdMarker>\n<NextKeyMarker></NextKeyMarker>\n<NextVersionIdMarker></NextVersionIdMarker>\n<MaxKeys>1000</MaxKeys>\n<IsTruncated>false</IsTruncated>\n<Version>\n<Key>test-file.txt</Key>\n<VersionId>yb4PgjnFVD2LfRZHXBjjsHBkQRHlu.TZ</VersionId>\n<IsLatest>true</IsLatest>\n<LastModified>2025-09-04T04:24:12Z</LastModified>\n<ETag>23228a38faecd0591107818c7281cece</ETag>\n<Size>23</Size>\n<StorageClass>STANDARD</StorageClass>\n<Owner>\n<ID>aws-config01</ID>\n<DisplayName>aws-config01</DisplayName>\n</Owner>\n</Version>\n</ListVersionsResult>\n```"
     LoadAssets:
       method: get
       resourcePath: /loadAssets
@@ -2152,7 +2116,7 @@ serviceActions:
     PostNodeDataDisk:
       method: post
       resourcePath: /ns/{nsId}/infra/{infraId}/node/{nodeId}/dataDisk
-      description: "Provisioning (Create and attach) dataDisk"
+      description: "Provisioning (Create and attach) dataDisk. The dataDisk is created in the Node's zone unless a zone is given."
     PostNs:
       method: post
       resourcePath: /ns
@@ -2197,10 +2161,6 @@ serviceActions:
       method: post
       resourcePath: /specImagePairReview
       description: "Validate whether a spec and image pair is compatible for node provisioning.\nThis lightweight API checks:\n- Spec availability in DB and CSP\n- Image availability in DB and CSP (auto-registers if found in CSP but not in DB)\n- Cost estimation based on spec\n\n**Use Cases:**\n- Quick validation before node creation\n- Pre-check for dynamic provisioning\n- Verify custom image IDs entered by user"
-    PostSqlDb:
-      method: post
-      resourcePath: /ns/{nsId}/resources/sqlDb
-      description: "Create a SQL Databases\n\nSupported CSPs: AWS, Azure, GCP, NCP\n- Note - `connectionName` example: aws-ap-northeast-2, azure-koreacentral, gcp-asia-northeast3, ncp-kr\n\n- Note - Please check the `requiredCSPResource` property which includes CSP specific values.\n\n- Note - You can find the API usage examples on this link, https://github.com/cloud-barista/mc-terrarium/discussions/110\n"
     PostSshKey:
       method: post
       resourcePath: /ns/{nsId}/resources/sshKey
@@ -2245,6 +2205,14 @@ serviceActions:
       method: post
       resourcePath: /ns/{nsId}/infra/{infraId}/vpn/{vpnId}/health
       description: "Perform a bidirectional ping test on a site-to-site VPN using existing Infra nodes and return the results.\n\nIt finds nodes that belong to the VPN's two sites and runs ping tests\nin both directions (site1→site2 and site2→site1) via private IP.\nThe VPN is considered healthy only when both directions succeed.\n\nA retry strategy is used with configurable interval and max attempts\n(default: 15s interval, 20 attempts)."
+    PruneObjectStorages:
+      method: post
+      resourcePath: /ns/{nsId}/resources/objectStorage/prune
+      description: "Purges Tumblebug metadata for Object Storage resources diagnosed as missing on CSP."
+    PruneVNets:
+      method: post
+      resourcePath: /ns/{nsId}/resources/vNet/prune
+      description: "Purges Tumblebug metadata for vNet resources diagnosed as missing on CSP."
     PutChangeK8sNodeGroupAutoscaleSize:
       method: put
       resourcePath: /ns/{nsId}/k8sCluster/{k8sClusterId}/k8sNodeGroup/{k8sNodeGroupName}/autoscaleSize
@@ -2341,10 +2309,22 @@ serviceActions:
       method: get
       resourcePath: /recommendSpecOptions
       description: "Get available options for filtering and prioritizing specs in RecommendSpec API"
+    ReconcileAllObjectStorages:
+      method: put
+      resourcePath: /ns/{nsId}/resources/objectStorage/reconcile
+      description: "Compares Tumblebug metadata with actual CSP object storage status via Spider.\nRestores status for alive resources and flags discrepancies."
     ReconcileAllVNets:
       method: put
       resourcePath: /ns/{nsId}/resources/vNet/reconcile
       description: "Reconcile all VNets and their subnets in the namespace by comparing TB metadata with CSP state. TB metadata is the source of truth; only TB-registered resources are reconciled.\n\n⚠️ **PERFORMANCE NOTE**: Reconciliation may take 1-2 minutes per cloud connection due to CSP API response time. Plan accordingly for namespaces with multiple cloud connections."
+    ReconcileObjectStorage:
+      method: put
+      resourcePath: /ns/{nsId}/resources/objectStorage/{osId}/reconcile
+      description: "Compares Tumblebug metadata for a specific Object Storage resource with actual CSP status via Spider."
+    ReconcileVNet:
+      method: put
+      resourcePath: /ns/{nsId}/resources/vNet/{vNetId}/reconcile
+      description: "Compares Tumblebug metadata for a specific vNet resource with actual CSP status via Spider."
     RecordProvisioningEvent:
       method: post
       resourcePath: /provisioning/event
@@ -2417,18 +2397,10 @@ serviceActions:
       method: put
       resourcePath: /ns/{nsId}/resources/objectStorage/{osId}/cors
       description: "Set CORS configuration of an object storage (bucket)"
-    SetObjectStorageCORSLagacy:
-      method: put
-      resourcePath: /resources/objectStorage/{objectStorageName}/cors
-      description: "(To be deprecated) Set CORS configuration of an object storage (bucket)\n\n**Important Notes:**\n- The CORS configuration must be provided in the request body in XML format.\n- The actual request body should have root element `CORSConfiguration`\n\n**Actual XML Request Body Example:**\n```xml\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CORSConfiguration>\n<CORSRule>\n<AllowedOrigin>https://example.com</AllowedOrigin>\n<AllowedOrigin>https://app.example.com</AllowedOrigin>\n<AllowedMethod>GET</AllowedMethod>\n<AllowedMethod>PUT</AllowedMethod>\n<AllowedHeader>Content-Type</AllowedHeader>\n<AllowedHeader>Authorization</AllowedHeader>\n<ExposeHeader>ETag</ExposeHeader>\n<MaxAgeSeconds>1800</MaxAgeSeconds>\n</CORSRule>\n<CORSRule>\n<AllowedOrigin>*</AllowedOrigin>\n<AllowedMethod>GET</AllowedMethod>\n<MaxAgeSeconds>300</MaxAgeSeconds>\n</CORSRule>\n</CORSConfiguration>\n```"
     SetObjectStorageVersioning:
       method: put
       resourcePath: /ns/{nsId}/resources/objectStorage/{osId}/versioning
       description: "Set versioning configuration of an object storage (bucket)\n\n**Note: **\n- Versioning options: \"Enabled\", \"Suspended\", \"Unversioned\"\n"
-    SetObjectStorageVersioningLagacy:
-      method: put
-      resourcePath: /resources/objectStorage/{objectStorageName}/versioning
-      description: "(To be deprecated) Set versioning status of an object storage (bucket)\n\n**Important Notes:**\n- The request body must be XML format with root element `VersioningConfiguration`\n- The `Status` field can be either `Enabled` or `Suspended`\n\n**Request Body Example:**\n```xml\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<VersioningConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\">\n<Status>Enabled</Status>\n</VersioningConfiguration>\n```"
     SetSystemInitialized:
       method: put
       resourcePath: /readyz/init
@@ -2595,6 +2567,10 @@ serviceActions:
       method: delete
       resourcePath: /migration/ns/{nsId}/infra/{infraId}
       description: "Delete the migrated multi-cloud infrastructure (Infra).\n\nThis operation can take a long time (multiple settle-time waits and vNet-deletion\nretries). By default it runs synchronously. Send header `Prefer: respond-async` to run\nit asynchronously instead: receive 202 Accepted with a reqId, then poll GET /request/{reqId}\n(status flow: Handling → Success / Error). Only the \"respond-async\" token is recognized.\n\n**Rate limiting** — Calls to CB-Tumblebug are paced at **~1.6 req/s (one per 625 ms)** to stay\nunder its **2 req/s per-client-IP** limit. This operation allows its paced read up to **30 s**\nfor a slot, rather than the usual 8 s, because deletion tolerates a longer wait. On timeout the\nresponse is **`503`** with a **`Retry-After`** header in seconds."
+    DeleteK8sCluster:
+      method: delete
+      resourcePath: /migration/ns/{nsId}/k8sCluster/{k8sClusterId}
+      description: "Delete a K8s cluster created via cm-beetle migration. This removes the cluster and all its node groups."
     DeleteMigratedSSHKey:
       method: delete
       resourcePath: /migration/ns/{nsId}/resources/sshKey/{sshKeyId}
@@ -2663,6 +2639,10 @@ serviceActions:
       method: get
       resourcePath: /migration/ns/{nsId}/infra/{infraId}
       description: "Get the migrated multi-cloud infrastructure (Infra)\n\n**Rate limiting** — Calls to CB-Tumblebug are paced at **~1.6 req/s (one per 625 ms)** to stay\nunder its **2 req/s per-client-IP** limit, and wait up to **8 s** for a slot. If none frees up\nin time the response is **`503`** with a **`Retry-After`** header in seconds. Those are the\ndefaults; operators tune them via `BEETLE_TUMBLEBUG_RETRIEVAL_REQUESTS_PER_SEC` and `_MAX_WAIT_SEC`."
+    GetK8sCluster:
+      method: get
+      resourcePath: /migration/ns/{nsId}/k8sCluster/{k8sClusterId}
+      description: "Retrieve information about a specific K8s cluster created via cm-beetle migration."
     GetMigratedSSHKey:
       method: get
       resourcePath: /migration/ns/{nsId}/resources/sshKey/{sshKeyId}
@@ -2715,6 +2695,10 @@ serviceActions:
       method: get
       resourcePath: /migration/ns/{nsId}/infra
       description: "Get the migrated multi-cloud infrastructure (Infra)\n\n**Rate limiting** — Calls to CB-Tumblebug are paced at **~1.6 req/s (one per 625 ms)** to stay\nunder its **2 req/s per-client-IP** limit, and wait up to **8 s** for a slot. If none frees up\nin time the response is **`503`** with a **`Retry-After`** header in seconds. Those are the\ndefaults; operators tune them via `BEETLE_TUMBLEBUG_RETRIEVAL_REQUESTS_PER_SEC` and `_MAX_WAIT_SEC`."
+    ListK8sClusters:
+      method: get
+      resourcePath: /migration/ns/{nsId}/k8sCluster
+      description: "List all K8s clusters created in the namespace via cm-beetle migration."
     ListMigratedSSHKeys:
       method: get
       resourcePath: /migration/ns/{nsId}/resources/sshKey
@@ -2751,6 +2735,10 @@ serviceActions:
       method: post
       resourcePath: /migration/ns/{nsId}/infraWithDefaults
       description: "Migrate an infrastructure to the multi-cloud infrastructure (Infra) with defaults.\n\nBy default this API runs synchronously. Send header `Prefer: respond-async` to run it\nasynchronously instead: receive 202 Accepted with a reqId, then poll GET /request/{reqId}\n(status flow: Handling → Success / Error). Only the \"respond-async\" token is recognized."
+    MigrateK8sCluster:
+      method: post
+      resourcePath: /migration/ns/{nsId}/k8sCluster
+      description: "Migrate an on-premise Kubernetes cluster to a managed K8s service (e.g., AWS EKS).\n\n**Workflow**:\n1. Call POST /recommendation/k8sCluster to get a RecommendedK8sInfra.\n2. Pass the recommendation result as-is to this endpoint.\n\n**Internal steps**: VNet → SSH Key → Security Group → K8s Cluster → Node Groups\n\nBy default this API runs synchronously (EKS takes ~10-20 min). Send header\n`Prefer: respond-async` to run it asynchronously: receive 202 Accepted with a\nreqId, then poll GET /request/{reqId} to check status."
     MigrateNlbs:
       method: post
       resourcePath: /migration/middleware/ns/{nsId}/infra/{infraId}/nlb
@@ -2767,14 +2755,18 @@ serviceActions:
       method: post
       resourcePath: /recommendation/infraWithNlb
       description: "Perform NLB-aware infrastructure recommendation and return multiple Pareto-optimal candidates.\n\nThe recommendation engine:\n1. Correlates NLB backend server IPs with source Node IPs\n2. Normalizes backend ports via majority vote when ports differ\n3. Assigns NLB-related nodes to shared NodeGroups (N:1), unrelated nodes to individual NodeGroups (1:1)\n4. Finds ranked compatible spec-image pairs per NodeGroup (representative node for NLB groups)\n5. Generates up to `limit` candidates — candidate i uses the i-th ranked pair per NodeGroup\n6. Maps source NLB configuration to target cloud NLB model (same for all candidates)\n\n[Note] `sourceInfra.nlbs` must be populated (HAProxy frontend-backend pairs from cm-honeybee).\n\n[Note] The returned `targetInfra.nodeGroups[].name` values are referenced by `targetNlbList[].targetGroup.nodeGroupId`.\nUse the same NodeGroup IDs when calling POST /migration/infra so that the NLB migration can reference them immediately.\n\n---\n## CSP-Specific NLB Notes\n\nAWS:\n- Port translation supported (e.g., listener 9999 → backend 8086).\n- DNS endpoint; allow ~5 min for propagation after creation.\n- [Auto] SG rule for backend port opened from 0.0.0.0/0.\n\nAzure:\n- Port translation supported. DNS + static IP endpoint.\n- [Auto] Health check timeout omitted (not supported by Azure).\n\nGCP:\n- Port translation NOT supported; traffic arrives at backend VMs on the listener port.\n- [Auto] Listener port is forced equal to the backend port — clients must connect on the application port (e.g., 8086, not 9999).\n- IP-only endpoint (no DNS name).\n\nIBM:\n- Port translation supported.\n- Listener address is assigned asynchronously; re-query if the address is empty after migration.\n- [Auto] Health check timeout forced strictly less than the interval.\n---"
-    RecommendK8sControlPlane:
+    RecommendK8sCluster:
       method: post
-      resourcePath: /recommendation/k8sControlPlane
-      description: "Get recommendation for K8s control plane based on honeybee source cluster data\nReturns configuration that can be directly used with cb-tumblebug k8sClusterDynamic API"
-    RecommendK8sNodeGroup:
+      resourcePath: /recommendation/k8sCluster
+      description: "Recommend a complete K8s cluster configuration based on on-premise infra data from cm-honeybee.\nReturns a RecommendedK8sInfra that can be passed directly to the K8s migration API.\n\n**Required Parameters**: `desiredProvider`, `desiredRegion`\n**Input**: On-premise infra model (from honeybee /infra/refined) with K8s cluster info and node roles"
+    RecommendK8sNodeGroupImages:
       method: post
-      resourcePath: /recommendation/k8sNodeGroup
-      description: "Get recommendation for K8s worker node group based on honeybee source cluster data\nReturns configuration that can be directly used with cb-tumblebug k8sNodeGroupDynamic API"
+      resourcePath: /recommendation/resources/k8sNodeGroupImages
+      description: "Recommend a node image for each worker node group derived from the source infrastructure.\n\nUnlike VM OS image recommendation, K8s node images are selected from a provider-curated\nlist (k8sclusterinfo.yaml) rather than the image DB. The selection is architecture-based:\nx86_64 groups receive \"default\"; arm64 groups receive the provider ARM image when\nNodeImageDesignation=true for the target provider.\n\n[Note] Only nodes with `role=worker` are considered. `k8sCluster` is not required.\n[Note] Only `targetOsImage.id` is populated in each entry; other ImageInfo fields are empty."
+    RecommendK8sNodeGroupSpecs:
+      method: post
+      resourcePath: /recommendation/resources/k8sNodeGroupSpecs
+      description: "Recommend worker node specs for each node group derived from the source infrastructure.\n\nSource workers are grouped by spec signature (vCPU/memory/architecture) because managed\nK8s node groups are homogeneous; one recommendation set is produced per group, and the\ngroup's source machines are listed in `sourceServers`.\n\n[Note] Only nodes with `role=worker` are considered. `k8sCluster` is not required.\n[Note] Specs below the target's K8s node minimum are upscaled, and the adjustment is\nreported in the entry's `description`."
     RecommendMultiInfraCandidates:
       method: post
       resourcePath: /recommendation/multiInfra
