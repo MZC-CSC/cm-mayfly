@@ -837,6 +837,11 @@ services:
       # worker, api-server) inherits it, which is what keeps signing and validation
       # on the same key. Managed centrally in the host .env.
       - AIRFLOW__API_AUTH__JWT_SECRET=${AIRFLOW_JWT_SECRET}
+      # Empty base_url makes Airflow emit relative auth redirects (/auth/login/) so the
+      # UI works on whatever address the client connected with (public IP/host) instead
+      # of bouncing to a fixed localhost:8080. Overrides airflow.cfg for images that
+      # still ship base_url=http://localhost:8080.
+      - AIRFLOW__API__BASE_URL=
       # MySQL credentials (managed centrally in the host .env)
       - MYSQL_USER=${AIRFLOW_DB_USER}
       - MYSQL_PASSWORD=${AIRFLOW_DB_PASSWORD}
