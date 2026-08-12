@@ -64,13 +64,18 @@ down or look at it, `infra remove`, `stop`, `info` and `logs` run without it.
 
 `Req` = must be non-empty. `Default` shows the value shipped in `.env.example` (`(secret)` = blank, you must fill it). `Used by` lists the containers that consume the variable.
 
-### cb-spider
+### cb-spider (+ its METADB)
 | Variable | Req | Default | Used by |
 |----------|:---:|---------|---------|
 | `SPIDER_USERNAME` | ✅ | (secret) | cb-spider, cm-ant |
 | `SPIDER_PASSWORD` | ✅ | (secret) | cb-spider, cm-ant |
 | `SPIDER_LOG_LEVEL` | ✅ | `error` | cb-spider |
 | `SPIDER_HISCALL_LOG_LEVEL` | ✅ | `error` | cb-spider |
+| `SPIDER_DB_USER` | ✅ | `spider` | cb-spider, cb-spider-postgres |
+| `SPIDER_DB_PASSWORD` | ✅ | (secret) | cb-spider, cb-spider-postgres |
+| `SPIDER_DB_NAME` | ✅ | `cb_spider` | cb-spider, cb-spider-postgres |
+
+> cb-spider 0.12.42+ can store its METADB in PostgreSQL (`cb-spider-postgres`) instead of the legacy SQLite-based `meta_db` directory — `SPIDER_DB_*` configures that database, analogous to `TUMBLEBUG_DB_*` for `cb-tumblebug-postgres` below.
 
 ### cb-tumblebug (+ its DB) and its API consumers
 | Variable | Req | Default | Used by |
@@ -139,7 +144,7 @@ down or look at it, `infra remove`, `stop`, `info` and `logs` run without it.
 | `SMTP_PASSWORD` | ⚪ optional | (blank) | airflow-server |
 | `SMTP_MAIL_FROM` | ⚪ optional | (blank) | airflow-server |
 
-> Note the **shared credentials**: `SPIDER_*` (cb-spider + cm-ant), `TB_API_*` (cb-tumblebug + cm-cicada), `TERRARIUM_API_*` (mc-terrarium + cb-tumblebug), `BEETLE_API_*` (cm-beetle + cm-cicada), `DAMSELFLY_API_*` (cm-damselfly + cm-cicada), and `VAULT_*` (cb-tumblebug + mc-terrarium). A single `.env` value drives every consumer, so changing it in one place updates them all — which is exactly why leaving one blank breaks more than one service.
+> Note the **shared credentials**: `SPIDER_*` (cb-spider + cm-ant), `SPIDER_DB_*` (cb-spider + cb-spider-postgres), `TB_API_*` (cb-tumblebug + cm-cicada), `TERRARIUM_API_*` (mc-terrarium + cb-tumblebug), `BEETLE_API_*` (cm-beetle + cm-cicada), `DAMSELFLY_API_*` (cm-damselfly + cm-cicada), and `VAULT_*` (cb-tumblebug + mc-terrarium). A single `.env` value drives every consumer, so changing it in one place updates them all — which is exactly why leaving one blank breaks more than one service.
 
 ---
 
