@@ -124,14 +124,29 @@ services:
       latest: https://raw.githubusercontent.com/cloud-barista/cm-honeybee/main/server/pkg/api/rest/docs/swagger.json
       release: https://raw.githubusercontent.com/cloud-barista/cm-honeybee/{release}/server/pkg/api/rest/docs/swagger.json
 
-  cm-honeybee-agent:
-    version: 0.5.11(latest)
-    baseurl: http://cm-honeybee:8082/honeybee-agent
-    auth:
-      type: none
-    swagger:
-      latest: https://raw.githubusercontent.com/cloud-barista/cm-honeybee/main/agent/pkg/api/rest/docs/swagger.json
-      release: https://raw.githubusercontent.com/cloud-barista/cm-honeybee/{release}/agent/pkg/api/rest/docs/swagger.json
+  # cm-honeybee-agent — commented out, not removed.
+  #
+  # The agent runs on the server being migrated, not next to cm-honeybee, so the
+  # baseurl below never resolves as written. It is kept because losing the entry
+  # would also lose the spec, and without the spec there is no way to call the
+  # agent at all.
+  #
+  # To reach an agent, replace the host with the address of the server it is
+  # installed on. `mayfly api` and `mayfly rest` can override the host, so an
+  # operator can check one server's agent that way. The console could do the
+  # same by rewriting the host from the target server chosen for a call.
+  #
+  # Nothing in cm-mayfly or cm-butterfly calls it today, so it stays commented
+  # out rather than appearing as a service that is always unreachable.
+  #
+  #cm-honeybee-agent:
+  #  version: 0.5.11(latest)
+  #  baseurl: http://cm-honeybee:8082/honeybee-agent
+  #  auth:
+  #    type: none
+  #  swagger:
+  #    latest: https://raw.githubusercontent.com/cloud-barista/cm-honeybee/main/agent/pkg/api/rest/docs/swagger.json
+  #    release: https://raw.githubusercontent.com/cloud-barista/cm-honeybee/{release}/agent/pkg/api/rest/docs/swagger.json
 
   cm-grasshopper:
     version: 0.5.3(latest)
@@ -3269,31 +3284,33 @@ serviceActions:
       method: post
       resourcePath: /velero/migration/precheck
       description: "Check source cluster, target cluster, and the S3 object store before executing Velero migration."
-  cm-honeybee-agent:
-    Get-Data-Info:
-      method: get
-      resourcePath: /data
-      description: "Get data migration information (required fields only for data migration)."
-    Get-Helm-Info:
-      method: get
-      resourcePath: /helm
-      description: "Get helm information."
-    Get-Infra-Info:
-      method: get
-      resourcePath: /infra
-      description: "Get infra information."
-    Get-Kubernetes-Info:
-      method: get
-      resourcePath: /kubernetes
-      description: "Get kubernetes information."
-    Get-Software-Info:
-      method: get
-      resourcePath: /software
-      description: "Get software information."
-    Health-Check-Readyz:
-      method: get
-      resourcePath: /readyz
-      description: "Check Honeybee Agent is ready"
+  # cm-honeybee-agent — commented out with the service entry above.
+  #
+  #cm-honeybee-agent:
+  #  Get-Data-Info:
+  #    method: get
+  #    resourcePath: /data
+  #    description: "Get data migration information (required fields only for data migration)."
+  #  Get-Helm-Info:
+  #    method: get
+  #    resourcePath: /helm
+  #    description: "Get helm information."
+  #  Get-Infra-Info:
+  #    method: get
+  #    resourcePath: /infra
+  #    description: "Get infra information."
+  #  Get-Kubernetes-Info:
+  #    method: get
+  #    resourcePath: /kubernetes
+  #    description: "Get kubernetes information."
+  #  Get-Software-Info:
+  #    method: get
+  #    resourcePath: /software
+  #    description: "Get software information."
+  #  Health-Check-Readyz:
+  #    method: get
+  #    resourcePath: /readyz
+  #    description: "Check Honeybee Agent is ready"
   cm-honeybee:
     Create-Connection-Info:
       method: post
