@@ -31,7 +31,7 @@ services:
   # https://github.com/cloud-barista/cb-spider/wiki/Docker-based-Start-Guide
   # https://hub.docker.com/r/cloudbaristaorg/cb-spider
   cb-spider:
-    image: cloudbaristaorg/cb-spider:0.12.35
+    image: cloudbaristaorg/cb-spider:0.12.42
     pull_policy: always
     container_name: cb-spider
     logging: *default-logging
@@ -43,10 +43,12 @@ services:
       - target: 1024
         published: 1024
         protocol: tcp
+    depends_on:
+      cb-spider-postgres:
+        condition: service_healthy
     volumes:
       - ./tool/mayfly:/app/tool/mayfly
       - ./conf/cb-spider/:/root/go/src/github.com/cloud-barista/cb-spider/conf/:ro
-      - ./data/cb-spider/meta_db/:/root/go/src/github.com/cloud-barista/cb-spider/meta_db/
       - ./data/cb-spider/log/:/root/go/src/github.com/cloud-barista/cb-spider/log/
     environment:
       - PLUGIN_SW=OFF
@@ -54,6 +56,12 @@ services:
       # cb-spider 0.12.17+ enforces authentication — empty values cause log.Fatal on startup
       - SPIDER_USERNAME=${SPIDER_USERNAME}
       - SPIDER_PASSWORD=${SPIDER_PASSWORD}
+      # cb-spider 0.12.42+ uses PostgreSQL as its METADB instead of the legacy
+      # SQLite-based meta_db directory — see cb-spider-postgres below.
+      - SPIDER_METADB_ENDPOINT=cb-spider-postgres:5432
+      - SPIDER_METADB_USER=${SPIDER_DB_USER}
+      - SPIDER_METADB_PASSWORD=${SPIDER_DB_PASSWORD}
+      - SPIDER_METADB_DATABASE=${SPIDER_DB_NAME}
       - SPIDER_LOG_LEVEL=${SPIDER_LOG_LEVEL}
       - SPIDER_HISCALL_LOG_LEVEL=${SPIDER_HISCALL_LOG_LEVEL}
       - ID_TRANSFORM_MODE=OFF
@@ -63,12 +71,33 @@ services:
       test: ["CMD", "/app/tool/mayfly", "rest", "get", "http://localhost:1024/spider/readyz"]
       <<: *default-health-check
 
+  # cb-spider-postgres
+  # CB-Spider METADB (PostgreSQL) — replaces the legacy SQLite-based meta_db
+  # directory as of cb-spider 0.12.42.
+  # See https://github.com/cloud-barista/cm-beetle/blob/main/deployments/docker-compose/docker-compose.yaml
+  cb-spider-postgres:
+    image: postgres:16-alpine
+    container_name: cb-spider-postgres
+    logging: *default-logging
+    restart: always
+    networks:
+      - spider_net
+    volumes:
+      - ./data/cb-spider/meta_db/postgres:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=${SPIDER_DB_USER}
+      - POSTGRES_PASSWORD=${SPIDER_DB_PASSWORD}
+      - POSTGRES_DB=${SPIDER_DB_NAME}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SPIDER_DB_USER} -d ${SPIDER_DB_NAME}"]
+      <<: *default-health-check
+
   # CB-Tumblebug
   # https://github.com/cloud-barista/cb-tumblebug/blob/main/scripts/runTumblebug.sh
   # https://hub.docker.com/r/cloudbaristaorg/cb-tumblebug
   # See https://github.com/cloud-barista/cb-tumblebug/blob/main/docker-compose.yaml
   cb-tumblebug:
-    image: cloudbaristaorg/cb-tumblebug:0.12.25
+    image: cloudbaristaorg/cb-tumblebug:0.12.30
     container_name: cb-tumblebug
     logging: *default-logging
     restart: unless-stopped
@@ -215,7 +244,7 @@ services:
   # used by cb-tumblebug
   # See https://github.com/cloud-barista/cb-tumblebug/blob/main/docker-compose.yaml
   cb-mapui:
-    image: cloudbaristaorg/cb-mapui:0.12.50
+    image: cloudbaristaorg/cb-mapui:0.12.56
     container_name: cb-mapui
     logging: *default-logging
     restart: unless-stopped
@@ -400,7 +429,7 @@ services:
   # see conf folder : https://github.com/cloud-barista/cm-beetle/tree/main/conf
   # And remove the conf-related comments in the volumes settings below.
   cm-beetle:
-    image: cloudbaristaorg/cm-beetle:0.5.9
+    image: cloudbaristaorg/cm-beetle:0.5.10
     container_name: cm-beetle
     logging: *default-logging
     pull_policy: always
@@ -438,6 +467,9 @@ services:
       - BEETLE_TUMBLEBUG_ENDPOINT=http://cb-tumblebug:1323
       # - BEETLE_TUMBLEBUG_API_USERNAME=default
       # - BEETLE_TUMBLEBUG_API_PASSWORD=default
+      # Set REQUESTS_PER_SEC to CB-Tumblebug's own per-client-IP limit
+      # - BEETLE_TUMBLEBUG_RETRIEVAL_REQUESTS_PER_SEC=2
+      # - BEETLE_TUMBLEBUG_RETRIEVAL_MAX_WAIT_SEC=8
     healthcheck: # for CM-Beetle
       test: ["CMD", "/app/tool/mayfly", "rest", "get", "http://cm-beetle:8056/beetle/readyz"]
       #test: [ "CMD", "curl", "-f", "http://localhost:8056/beetle/readyz" ]
@@ -641,7 +673,7 @@ services:
   # https://hub.docker.com/r/cloudbaristaorg/cm-damselfly
   cm-damselfly:
     # image: cloudbaristaorg/cm-damselfly:edge
-    image: cloudbaristaorg/cm-damselfly:0.6.0
+    image: cloudbaristaorg/cm-damselfly:0.6.1
     container_name: cm-damselfly
     logging: *default-logging
     pull_policy: always
