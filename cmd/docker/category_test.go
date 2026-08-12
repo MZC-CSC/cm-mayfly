@@ -34,6 +34,7 @@ var expectedComposeCategories = map[string]string{
 	"openbao-unseal":   CategorySecrets,
 	"openbao-honeybee": CategorySecrets,
 
+	"cb-spider-postgres":    CategoryDataStores,
 	"cb-tumblebug-etcd":     CategoryDataStores,
 	"cb-tumblebug-postgres": CategoryDataStores,
 	"ant-postgres":          CategoryDataStores,
