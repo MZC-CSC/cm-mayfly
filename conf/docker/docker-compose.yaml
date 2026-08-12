@@ -528,6 +528,19 @@ services:
       - POSTGRES_DATABASE_HOST=cm-butterfly-db
       - POSTGRES_DB=${BUTTERFLY_DB_NAME}
       - DATABASE_URL=postgres://${BUTTERFLY_DB_USER}:${BUTTERFLY_DB_PASSWORD}@cm-butterfly-db:5432/${BUTTERFLY_DB_NAME}
+      # Subsystem credentials. api.yaml refers to these as ${VAR} and the proxy
+      # resolves them at startup, so the console authenticates with the same
+      # values mayfly does instead of carrying its own copy. Named explicitly
+      # rather than passing the whole .env, which also holds secrets this
+      # container has no business seeing.
+      - SPIDER_USERNAME=${SPIDER_USERNAME}
+      - SPIDER_PASSWORD=${SPIDER_PASSWORD}
+      - TB_API_USERNAME=${TB_API_USERNAME}
+      - TB_API_PASSWORD=${TB_API_PASSWORD}
+      - BEETLE_API_USERNAME=${BEETLE_API_USERNAME}
+      - BEETLE_API_PASSWORD=${BEETLE_API_PASSWORD}
+      - DAMSELFLY_API_USERNAME=${DAMSELFLY_API_USERNAME}
+      - DAMSELFLY_API_PASSWORD=${DAMSELFLY_API_PASSWORD}
     healthcheck: # for butterfly-api
       test: ["CMD", "/app/tool/mayfly", "rest", "get", "http://cm-butterfly-api:4000/readyz"]
       #test: [ "CMD", "curl", "-f", "http://localhost:4000/readyz" ]
