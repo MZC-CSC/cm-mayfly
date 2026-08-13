@@ -559,6 +559,46 @@ func removeAndDownloadFresh(cbTumblebugDir, gitTag, targetDir, originalDir strin
 	return initializeTumblebug(cbTumblebugDir, originalDir)
 }
 
+// tumblebugInitEnv builds the environment handed to the initialization script.
+//
+// cb-tumblebug's init.py authenticates to the running server with Basic Auth
+// taken from TB_API_USERNAME / TB_API_PASSWORD, and falls back to "default"
+// when neither is set. mayfly starts that server with whatever conf/docker/.env
+// declares, so on a deployment that changed those values the init run
+// authenticated as "default" and stopped on a 401. The message it prints then
+// points at the wrong thing entirely - "OpenBao credential store is NOT
+// available ... Fix: start OpenBao and services" - because the status endpoint
+// it happened to call first is an OpenBao one. The reader goes looking at the
+// vault, which is healthy.
+//
+// The .env is the file that started the server, so it is the one source that
+// cannot disagree with it. A value already exported in the environment still
+// wins: an operator setting TB_API_USERNAME by hand is stating an intent that a
+// file should not override.
+func tumblebugInitEnv(parent []string, dotEnv map[string]string) []string {
+	env := append([]string(nil), parent...)
+	for _, name := range []string{"TB_API_USERNAME", "TB_API_PASSWORD"} {
+		if envDefined(parent, name) {
+			continue
+		}
+		if v := dotEnv[name]; v != "" {
+			env = append(env, name+"="+v)
+		}
+	}
+	return env
+}
+
+// envDefined reports whether name is present in an os.Environ()-shaped slice.
+func envDefined(env []string, name string) bool {
+	prefix := name + "="
+	for _, entry := range env {
+		if strings.HasPrefix(entry, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 // initializeTumblebug initializes Tumblebug by running setup.env and init.sh
 func initializeTumblebug(cbTumblebugDir, originalDir string) error {
 	fmt.Printf("Starting CB-Tumblebug initialization: %s\n", cbTumblebugDir)
@@ -673,6 +713,17 @@ echo "CB-Tumblebug initialization completed."
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin // This ensures stdin is properly connected
+
+	dotEnv, err := common.ParseDotEnv(common.DefaultDotEnvPath())
+	if err != nil {
+		// Not fatal on its own: the file is only needed when it changed the
+		// credentials away from cb-tumblebug's own defaults, and if it did, the
+		// 401 that follows says so.
+		fmt.Printf("Warning: could not read %s (%v) - the initialization will authenticate with cb-tumblebug's default credentials.\n",
+			common.DefaultDotEnvPath(), err)
+		dotEnv = nil
+	}
+	cmd.Env = tumblebugInitEnv(os.Environ(), dotEnv)
 
 	err = cmd.Run()
 	if err != nil {

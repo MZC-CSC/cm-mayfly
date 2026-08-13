@@ -211,3 +211,81 @@ func TestIsTagExistsInRepo(t *testing.T) {
 		})
 	}
 }
+
+// The initialization script authenticates to the running cb-tumblebug, so it
+// has to be handed the credentials that server was started with. Everything
+// below is about where that value comes from and who wins when two sources
+// disagree.
+func TestTumblebugInitEnv(t *testing.T) {
+	dotEnv := map[string]string{
+		"TB_API_USERNAME": "tb-from-dotenv",
+		"TB_API_PASSWORD": "pw-from-dotenv",
+		"TB_LOGLEVEL":     "debug",
+	}
+
+	t.Run("takes credentials from .env when the environment has none", func(t *testing.T) {
+		env := tumblebugInitEnv([]string{"HOME=/home/ubuntu"}, dotEnv)
+		assertEnv(t, env, "TB_API_USERNAME", "tb-from-dotenv")
+		assertEnv(t, env, "TB_API_PASSWORD", "pw-from-dotenv")
+	})
+
+	t.Run("keeps the parent environment", func(t *testing.T) {
+		env := tumblebugInitEnv([]string{"HOME=/home/ubuntu", "PATH=/usr/bin"}, dotEnv)
+		assertEnv(t, env, "HOME", "/home/ubuntu")
+		assertEnv(t, env, "PATH", "/usr/bin")
+	})
+
+	t.Run("an exported value wins over the file", func(t *testing.T) {
+		env := tumblebugInitEnv([]string{"TB_API_USERNAME=exported"}, dotEnv)
+		assertEnv(t, env, "TB_API_USERNAME", "exported")
+		// The other half still comes from the file - one explicit value does not
+		// disable the rest.
+		assertEnv(t, env, "TB_API_PASSWORD", "pw-from-dotenv")
+	})
+
+	t.Run("an exported empty value is still a decision", func(t *testing.T) {
+		env := tumblebugInitEnv([]string{"TB_API_PASSWORD="}, dotEnv)
+		assertEnv(t, env, "TB_API_PASSWORD", "")
+	})
+
+	t.Run("carries nothing else across", func(t *testing.T) {
+		env := tumblebugInitEnv(nil, dotEnv)
+		if envDefined(env, "TB_LOGLEVEL") {
+			t.Errorf("TB_LOGLEVEL leaked into the init environment: %v", env)
+		}
+	})
+
+	t.Run("survives a missing .env", func(t *testing.T) {
+		env := tumblebugInitEnv([]string{"HOME=/home/ubuntu"}, nil)
+		if envDefined(env, "TB_API_USERNAME") {
+			t.Errorf("TB_API_USERNAME set with no .env to read it from: %v", env)
+		}
+		assertEnv(t, env, "HOME", "/home/ubuntu")
+	})
+
+	t.Run("skips a blank value in .env", func(t *testing.T) {
+		env := tumblebugInitEnv(nil, map[string]string{"TB_API_USERNAME": ""})
+		if envDefined(env, "TB_API_USERNAME") {
+			t.Errorf("blank .env value was passed through: %v", env)
+		}
+	})
+}
+
+// assertEnv checks that name resolves to want, reading the slice the way exec
+// does - the last entry for a name is the effective one.
+func assertEnv(t *testing.T, env []string, name, want string) {
+	t.Helper()
+	prefix := name + "="
+	got, found := "", false
+	for _, entry := range env {
+		if strings.HasPrefix(entry, prefix) {
+			got, found = strings.TrimPrefix(entry, prefix), true
+		}
+	}
+	if !found {
+		t.Fatalf("%s is not in the environment: %v", name, env)
+	}
+	if got != want {
+		t.Errorf("%s = %q, want %q", name, got, want)
+	}
+}
