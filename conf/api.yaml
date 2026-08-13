@@ -1,41 +1,60 @@
 # =============================================================================
-# Service registry for the `mayfly api` / `mayfly rest` commands.
+# Service registry for the Cloud-Migrator subsystems.
 #
-# Each service entry has a baseurl and an `auth` block that tells cm-mayfly how
-# to authenticate when it calls that service.
+# Two things read this file, and they must read the same one:
 #
-# auth.type — the authentication METHOD to use (it declares HOW to authenticate,
-# not whether the remote service enforces auth):
-#   * none   — send no credentials. This is also the effective default when the
-#              auth block is omitted.
-#   * basic  — HTTP Basic Auth built from auth.username + auth.password.
-#   * bearer — send auth.token as a Bearer token.
+#   * cm-mayfly    — the `mayfly api` / `mayfly rest` commands call a subsystem
+#                    directly from the host.
+#   * cm-butterfly — its proxy answers POST /api/{subsystem}/{operationId} by
+#                    looking the operationId up here and calling
+#                    services.<subsystem>.baseurl + resourcePath.
 #
-# Credential values (username / password / token) may each be written either as
-# a literal or as a ${VAR} reference:
-#   * literal   e.g. "username: default" — the value is taken from this file.
-#   * ${VAR}    e.g. "password: ${TB_API_PASSWORD}" — the value is read from the
-#               environment at call time. Writing a value as ${VAR} is the
-#               explicit signal that the credential lives outside this file.
+# cm-mayfly holds the master copy and generates serviceActions from each
+# subsystem's swagger (`mayfly api tool`). cm-butterfly takes this file as it
+# is — there is no conversion step, and a difference between the two copies
+# means one of them has drifted.
 #
-# Resolution order for a ${VAR} reference (first hit wins):
-#   1. the process environment (an OS-level / exported variable),
-#   2. conf/docker/.env (the single shared environment file),
-#   3. otherwise it resolves to empty — for basic auth no Authorization header
-#      is then sent, and a warning is printed. There is no implicit default.
+# The operationId is scoped to its subsystem: the same name exists in more than
+# one of them, which is why cm-butterfly's proxy path carries the subsystem.
 #
-# A --username / --password / --token flag passed on the command line overrides
-# whatever is configured here.
+# CREDENTIALS
 #
-# api.yaml only controls what cm-mayfly SENDS. Whether a service actually
-# enforces auth is the service's own decision (for example cm-damselfly checks
-# credentials only when DAMSELFLY_API_AUTH_ENABLED=true). Sending credentials to
-# a service that is not enforcing auth is harmless — they are simply ignored —
-# so basic auth can be configured here regardless of the server's current state.
+#   auth.type  none | basic | bearer
+#   none       send nothing. Also the effect when the auth block is omitted.
+#   basic      build the header from auth.username + auth.password.
+#   bearer     send a token. cm-mayfly takes auth.token from this file;
+#              cm-butterfly takes it from the incoming request instead.
 #
-# A possible future enhancement is to make auth.type itself a ${VAR} reference,
-# for services whose method can change at runtime; that is intentionally left
-# out for now until a concrete need appears.
+# A username or password may be written as ${VAR} and is read from the process
+# environment. Under docker compose the values come from the single shared .env
+# — cm-mayfly reads it directly, and the compose file passes the same values
+# into the cm-butterfly-api container.
+#
+# A ${VAR} that resolves to nothing is an error, not a default:
+#
+#   * cm-mayfly    sends no Authorization header and warns.
+#   * cm-butterfly refuses to start and names the variable.
+#
+# There is no implicit fallback anywhere. These values were literals once, so a
+# deployment could change its .env while the file kept sending the old
+# credentials, and the only symptom was a 401 that looked like a screen failing
+# to load.
+#
+# A --username / --password / --token flag on the cm-mayfly command line
+# overrides whatever is configured here.
+#
+# This file only controls what gets SENT. Whether a subsystem enforces auth is
+# its own decision — cm-damselfly, for instance, checks credentials only when
+# DAMSELFLY_API_AUTH_ENABLED=true. Sending credentials to a subsystem that is
+# not enforcing them is harmless.
+#
+# baseurl is literal and has no environment override. It describes how the
+# deployment is wired — under compose these are the service hostnames. Running
+# a subsystem on localhost for development means editing it by hand, and that
+# edit is not committed.
+#
+# The swagger block records where each subsystem's spec comes from. cm-mayfly
+# uses it to regenerate; cm-butterfly ignores it.
 # =============================================================================
 services:
   cb-spider: #service name
@@ -105,14 +124,29 @@ services:
       latest: https://raw.githubusercontent.com/cloud-barista/cm-honeybee/main/server/pkg/api/rest/docs/swagger.json
       release: https://raw.githubusercontent.com/cloud-barista/cm-honeybee/{release}/server/pkg/api/rest/docs/swagger.json
 
-  cm-honeybee-agent:
-    version: 0.5.12(latest)
-    baseurl: http://cm-honeybee:8082/honeybee-agent
-    auth:
-      type: none
-    swagger:
-      latest: https://raw.githubusercontent.com/cloud-barista/cm-honeybee/main/agent/pkg/api/rest/docs/swagger.json
-      release: https://raw.githubusercontent.com/cloud-barista/cm-honeybee/{release}/agent/pkg/api/rest/docs/swagger.json
+  # cm-honeybee-agent — commented out, not removed.
+  #
+  # The agent runs on the server being migrated, not next to cm-honeybee, so the
+  # baseurl below never resolves as written. It is kept because losing the entry
+  # would also lose the spec, and without the spec there is no way to call the
+  # agent at all.
+  #
+  # To reach an agent, replace the host with the address of the server it is
+  # installed on. `mayfly api` and `mayfly rest` can override the host, so an
+  # operator can check one server's agent that way. The console could do the
+  # same by rewriting the host from the target server chosen for a call.
+  #
+  # Nothing in cm-mayfly or cm-butterfly calls it today, so it stays commented
+  # out rather than appearing as a service that is always unreachable.
+  #
+  #cm-honeybee-agent:
+  #  version: 0.5.12(latest)
+  #  baseurl: http://cm-honeybee:8082/honeybee-agent
+  #  auth:
+  #    type: none
+  #  swagger:
+  #    latest: https://raw.githubusercontent.com/cloud-barista/cm-honeybee/main/agent/pkg/api/rest/docs/swagger.json
+  #    release: https://raw.githubusercontent.com/cloud-barista/cm-honeybee/{release}/agent/pkg/api/rest/docs/swagger.json
 
   cm-grasshopper:
     version: 0.5.3(latest)
@@ -3250,31 +3284,33 @@ serviceActions:
       method: post
       resourcePath: /velero/migration/precheck
       description: "Check source cluster, target cluster, and the S3 object store before executing Velero migration."
-  cm-honeybee-agent:
-    Get-Data-Info:
-      method: get
-      resourcePath: /data
-      description: "Get data migration information (required fields only for data migration)."
-    Get-Helm-Info:
-      method: get
-      resourcePath: /helm
-      description: "Get helm information."
-    Get-Infra-Info:
-      method: get
-      resourcePath: /infra
-      description: "Get infra information."
-    Get-Kubernetes-Info:
-      method: get
-      resourcePath: /kubernetes
-      description: "Get kubernetes information."
-    Get-Software-Info:
-      method: get
-      resourcePath: /software
-      description: "Get software information."
-    Health-Check-Readyz:
-      method: get
-      resourcePath: /readyz
-      description: "Check Honeybee Agent is ready"
+  # cm-honeybee-agent — commented out with the service entry above.
+  #
+  #cm-honeybee-agent:
+  #  Get-Data-Info:
+  #    method: get
+  #    resourcePath: /data
+  #    description: "Get data migration information (required fields only for data migration)."
+  #  Get-Helm-Info:
+  #    method: get
+  #    resourcePath: /helm
+  #    description: "Get helm information."
+  #  Get-Infra-Info:
+  #    method: get
+  #    resourcePath: /infra
+  #    description: "Get infra information."
+  #  Get-Kubernetes-Info:
+  #    method: get
+  #    resourcePath: /kubernetes
+  #    description: "Get kubernetes information."
+  #  Get-Software-Info:
+  #    method: get
+  #    resourcePath: /software
+  #    description: "Get software information."
+  #  Health-Check-Readyz:
+  #    method: get
+  #    resourcePath: /readyz
+  #    description: "Check Honeybee Agent is ready"
   cm-honeybee:
     Create-Connection-Info:
       method: post
