@@ -545,6 +545,11 @@ services:
       - BEETLE_API_PASSWORD=${BEETLE_API_PASSWORD}
       - DAMSELFLY_API_USERNAME=${DAMSELFLY_API_USERNAME}
       - DAMSELFLY_API_PASSWORD=${DAMSELFLY_API_PASSWORD}
+      # How often the console asks whether the linked services are answering, and
+      # how many failures in a row it takes before saying so. Here rather than in
+      # the console's build so the values can be changed without a new image.
+      - HEALTH_CHECK_INTERVAL_SEC=${HEALTH_CHECK_INTERVAL_SEC:-300}
+      - HEALTH_CHECK_FAILURE_THRESHOLD=${HEALTH_CHECK_FAILURE_THRESHOLD:-2}
     healthcheck: # for butterfly-api
       test: ["CMD", "/app/tool/mayfly", "rest", "get", "http://cm-butterfly-api:4000/readyz"]
       #test: [ "CMD", "curl", "-f", "http://localhost:4000/readyz" ]
