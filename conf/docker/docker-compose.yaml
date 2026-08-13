@@ -429,7 +429,7 @@ services:
   # see conf folder : https://github.com/cloud-barista/cm-beetle/tree/main/conf
   # And remove the conf-related comments in the volumes settings below.
   cm-beetle:
-    image: cloudbaristaorg/cm-beetle:0.5.10
+    image: cloudbaristaorg/cm-beetle:0.5.11
     container_name: cm-beetle
     logging: *default-logging
     pull_policy: always
@@ -465,8 +465,12 @@ services:
       - BEETLE_NODE_ENV=development
       # - BEETLE_AUTOCONTROL_DURATION_MS=10000
       - BEETLE_TUMBLEBUG_ENDPOINT=http://cb-tumblebug:1323
-      # - BEETLE_TUMBLEBUG_API_USERNAME=default
-      # - BEETLE_TUMBLEBUG_API_PASSWORD=default
+      # cm-beetle calls cb-tumblebug with these, so they have to match the
+      # credentials cb-tumblebug is started with. Left commented out they fell
+      # back to the image default and every call returned 401 as soon as
+      # TB_API_* was set to anything other than "default".
+      - BEETLE_TUMBLEBUG_API_USERNAME=${TB_API_USERNAME}
+      - BEETLE_TUMBLEBUG_API_PASSWORD=${TB_API_PASSWORD}
       # Set REQUESTS_PER_SEC to CB-Tumblebug's own per-client-IP limit
       # - BEETLE_TUMBLEBUG_RETRIEVAL_REQUESTS_PER_SEC=2
       # - BEETLE_TUMBLEBUG_RETRIEVAL_MAX_WAIT_SEC=8
@@ -603,7 +607,7 @@ services:
   # See https://github.com/cloud-barista/cm-honeybee/blob/main/server/docker-compose.yaml
   cm-honeybee:
     # image: cloudbaristaorg/cm-honeybee:edge
-    image: cloudbaristaorg/cm-honeybee:0.5.11
+    image: cloudbaristaorg/cm-honeybee:0.5.12
     container_name: cm-honeybee
     logging: *default-logging
     pull_policy: always
