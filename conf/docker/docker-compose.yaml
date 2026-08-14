@@ -489,7 +489,7 @@ services:
   # (Not required) https://github.com/cloud-barista/cm-butterfly/tree/main/api/conf/authsetting.yaml.sample to authsetting.yaml
   # https://hub.docker.com/r/cloudbaristaorg/cm-butterfly-api
   cm-butterfly-api:
-    image: cloudbaristaorg/cm-butterfly-api:0.5.6
+    image: cloudbaristaorg/cm-butterfly-api:0.5.8
     # image: cloudbaristaorg/cm-butterfly-api:edge
     container_name: cm-butterfly-api
     logging: *default-logging
@@ -532,6 +532,24 @@ services:
       - POSTGRES_DATABASE_HOST=cm-butterfly-db
       - POSTGRES_DB=${BUTTERFLY_DB_NAME}
       - DATABASE_URL=postgres://${BUTTERFLY_DB_USER}:${BUTTERFLY_DB_PASSWORD}@cm-butterfly-db:5432/${BUTTERFLY_DB_NAME}
+      # Subsystem credentials. api.yaml refers to these as ${VAR} and the proxy
+      # resolves them at startup, so the console authenticates with the same
+      # values mayfly does instead of carrying its own copy. Named explicitly
+      # rather than passing the whole .env, which also holds secrets this
+      # container has no business seeing.
+      - SPIDER_USERNAME=${SPIDER_USERNAME}
+      - SPIDER_PASSWORD=${SPIDER_PASSWORD}
+      - TB_API_USERNAME=${TB_API_USERNAME}
+      - TB_API_PASSWORD=${TB_API_PASSWORD}
+      - BEETLE_API_USERNAME=${BEETLE_API_USERNAME}
+      - BEETLE_API_PASSWORD=${BEETLE_API_PASSWORD}
+      - DAMSELFLY_API_USERNAME=${DAMSELFLY_API_USERNAME}
+      - DAMSELFLY_API_PASSWORD=${DAMSELFLY_API_PASSWORD}
+      # How often the console asks whether the linked services are answering, and
+      # how many failures in a row it takes before saying so. Here rather than in
+      # the console's build so the values can be changed without a new image.
+      - HEALTH_CHECK_INTERVAL_SEC=${HEALTH_CHECK_INTERVAL_SEC:-300}
+      - HEALTH_CHECK_FAILURE_THRESHOLD=${HEALTH_CHECK_FAILURE_THRESHOLD:-2}
     healthcheck: # for butterfly-api
       test: ["CMD", "/app/tool/mayfly", "rest", "get", "http://cm-butterfly-api:4000/readyz"]
       #test: [ "CMD", "curl", "-f", "http://localhost:4000/readyz" ]
@@ -543,7 +561,7 @@ services:
   # https://github.com/cloud-barista/cm-butterfly/blob/main/front/nginx.conf
   # https://hub.docker.com/r/cloudbaristaorg/cm-butterfly-front
   cm-butterfly-front:
-    image: cloudbaristaorg/cm-butterfly-front:0.5.6
+    image: cloudbaristaorg/cm-butterfly-front:0.5.8
     # image: cloudbaristaorg/cm-butterfly-front:edge
 
     container_name: cm-butterfly-front
@@ -607,7 +625,7 @@ services:
   # See https://github.com/cloud-barista/cm-honeybee/blob/main/server/docker-compose.yaml
   cm-honeybee:
     # image: cloudbaristaorg/cm-honeybee:edge
-    image: cloudbaristaorg/cm-honeybee:0.5.12
+    image: cloudbaristaorg/cm-honeybee:0.5.13
     container_name: cm-honeybee
     logging: *default-logging
     pull_policy: always
@@ -930,7 +948,7 @@ services:
   # See https://github.com/cloud-barista/cm-grasshopper/blob/main/docker-compose.yaml
   cm-grasshopper:
     # image: cloudbaristaorg/cm-grasshopper:edge
-    image: cloudbaristaorg/cm-grasshopper:0.5.3
+    image: cloudbaristaorg/cm-grasshopper:0.5.6
     container_name: cm-grasshopper
     logging: *default-logging
     pull_policy: always
