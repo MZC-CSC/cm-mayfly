@@ -1,41 +1,60 @@
 # =============================================================================
-# Service registry for the `mayfly api` / `mayfly rest` commands.
+# Service registry for the Cloud-Migrator subsystems.
 #
-# Each service entry has a baseurl and an `auth` block that tells cm-mayfly how
-# to authenticate when it calls that service.
+# Two things read this file, and they must read the same one:
 #
-# auth.type — the authentication METHOD to use (it declares HOW to authenticate,
-# not whether the remote service enforces auth):
-#   * none   — send no credentials. This is also the effective default when the
-#              auth block is omitted.
-#   * basic  — HTTP Basic Auth built from auth.username + auth.password.
-#   * bearer — send auth.token as a Bearer token.
+#   * cm-mayfly    — the `mayfly api` / `mayfly rest` commands call a subsystem
+#                    directly from the host.
+#   * cm-butterfly — its proxy answers POST /api/{subsystem}/{operationId} by
+#                    looking the operationId up here and calling
+#                    services.<subsystem>.baseurl + resourcePath.
 #
-# Credential values (username / password / token) may each be written either as
-# a literal or as a ${VAR} reference:
-#   * literal   e.g. "username: default" — the value is taken from this file.
-#   * ${VAR}    e.g. "password: ${TB_API_PASSWORD}" — the value is read from the
-#               environment at call time. Writing a value as ${VAR} is the
-#               explicit signal that the credential lives outside this file.
+# cm-mayfly holds the master copy and generates serviceActions from each
+# subsystem's swagger (`mayfly api tool`). cm-butterfly takes this file as it
+# is — there is no conversion step, and a difference between the two copies
+# means one of them has drifted.
 #
-# Resolution order for a ${VAR} reference (first hit wins):
-#   1. the process environment (an OS-level / exported variable),
-#   2. conf/docker/.env (the single shared environment file),
-#   3. otherwise it resolves to empty — for basic auth no Authorization header
-#      is then sent, and a warning is printed. There is no implicit default.
+# The operationId is scoped to its subsystem: the same name exists in more than
+# one of them, which is why cm-butterfly's proxy path carries the subsystem.
 #
-# A --username / --password / --token flag passed on the command line overrides
-# whatever is configured here.
+# CREDENTIALS
 #
-# api.yaml only controls what cm-mayfly SENDS. Whether a service actually
-# enforces auth is the service's own decision (for example cm-damselfly checks
-# credentials only when DAMSELFLY_API_AUTH_ENABLED=true). Sending credentials to
-# a service that is not enforcing auth is harmless — they are simply ignored —
-# so basic auth can be configured here regardless of the server's current state.
+#   auth.type  none | basic | bearer
+#   none       send nothing. Also the effect when the auth block is omitted.
+#   basic      build the header from auth.username + auth.password.
+#   bearer     send a token. cm-mayfly takes auth.token from this file;
+#              cm-butterfly takes it from the incoming request instead.
 #
-# A possible future enhancement is to make auth.type itself a ${VAR} reference,
-# for services whose method can change at runtime; that is intentionally left
-# out for now until a concrete need appears.
+# A username or password may be written as ${VAR} and is read from the process
+# environment. Under docker compose the values come from the single shared .env
+# — cm-mayfly reads it directly, and the compose file passes the same values
+# into the cm-butterfly-api container.
+#
+# A ${VAR} that resolves to nothing is an error, not a default:
+#
+#   * cm-mayfly    sends no Authorization header and warns.
+#   * cm-butterfly refuses to start and names the variable.
+#
+# There is no implicit fallback anywhere. These values were literals once, so a
+# deployment could change its .env while the file kept sending the old
+# credentials, and the only symptom was a 401 that looked like a screen failing
+# to load.
+#
+# A --username / --password / --token flag on the cm-mayfly command line
+# overrides whatever is configured here.
+#
+# This file only controls what gets SENT. Whether a subsystem enforces auth is
+# its own decision — cm-damselfly, for instance, checks credentials only when
+# DAMSELFLY_API_AUTH_ENABLED=true. Sending credentials to a subsystem that is
+# not enforcing them is harmless.
+#
+# baseurl is literal and has no environment override. It describes how the
+# deployment is wired — under compose these are the service hostnames. Running
+# a subsystem on localhost for development means editing it by hand, and that
+# edit is not committed.
+#
+# The swagger block records where each subsystem's spec comes from. cm-mayfly
+# uses it to regenerate; cm-butterfly ignores it.
 # =============================================================================
 services:
   cb-spider: #service name
@@ -68,7 +87,7 @@ services:
       latest: https://raw.githubusercontent.com/cloud-barista/cm-ant/main/api/swagger.json
       release: https://raw.githubusercontent.com/cloud-barista/cm-ant/{release}/api/swagger.json
   cm-beetle:
-    version: 0.5.11(latest)
+    version: 0.6.0(latest)
     baseurl: http://cm-beetle:8056/beetle
     auth:
       type: basic
@@ -81,14 +100,14 @@ services:
   cm-butterfly-api:
     # No public swagger source is registered for this service, so the version is
     # kept in step with the image tag in conf/docker/docker-compose.yaml by hand.
-    version: 0.5.5
+    version: 0.6.0
     #baseurl: http://localhost:4000
     baseurl: http://cm-butterfly-api:4000
     auth:
       type: none
       
   cm-cicada:
-    version: 0.5.3(latest)
+    version: 0.6.0(latest)
     baseurl: http://cm-cicada:8083/cicada
     auth:
       type: none
@@ -97,7 +116,7 @@ services:
       release: https://raw.githubusercontent.com/cloud-barista/cm-cicada/{release}/pkg/api/rest/docs/swagger.json
 
   cm-honeybee:
-    version: 0.5.12(latest)
+    version: 0.6.0(latest)
     baseurl: http://cm-honeybee:8081/honeybee
     auth:
       type: none
@@ -105,17 +124,32 @@ services:
       latest: https://raw.githubusercontent.com/cloud-barista/cm-honeybee/main/server/pkg/api/rest/docs/swagger.json
       release: https://raw.githubusercontent.com/cloud-barista/cm-honeybee/{release}/server/pkg/api/rest/docs/swagger.json
 
-  cm-honeybee-agent:
-    version: 0.5.12(latest)
-    baseurl: http://cm-honeybee:8082/honeybee-agent
-    auth:
-      type: none
-    swagger:
-      latest: https://raw.githubusercontent.com/cloud-barista/cm-honeybee/main/agent/pkg/api/rest/docs/swagger.json
-      release: https://raw.githubusercontent.com/cloud-barista/cm-honeybee/{release}/agent/pkg/api/rest/docs/swagger.json
+  # cm-honeybee-agent — commented out, not removed.
+  #
+  # The agent runs on the server being migrated, not next to cm-honeybee, so the
+  # baseurl below never resolves as written. It is kept because losing the entry
+  # would also lose the spec, and without the spec there is no way to call the
+  # agent at all.
+  #
+  # To reach an agent, replace the host with the address of the server it is
+  # installed on. `mayfly api` and `mayfly rest` can override the host, so an
+  # operator can check one server's agent that way. The console could do the
+  # same by rewriting the host from the target server chosen for a call.
+  #
+  # Nothing in cm-mayfly or cm-butterfly calls it today, so it stays commented
+  # out rather than appearing as a service that is always unreachable.
+  #
+  #cm-honeybee-agent:
+  #  version: 0.5.12(latest)
+  #  baseurl: http://cm-honeybee:8082/honeybee-agent
+  #  auth:
+  #    type: none
+  #  swagger:
+  #    latest: https://raw.githubusercontent.com/cloud-barista/cm-honeybee/main/agent/pkg/api/rest/docs/swagger.json
+  #    release: https://raw.githubusercontent.com/cloud-barista/cm-honeybee/{release}/agent/pkg/api/rest/docs/swagger.json
 
   cm-grasshopper:
-    version: 0.5.3(latest)
+    version: 0.6.0(latest)
     baseurl: http://cm-grasshopper:8084/grasshopper
     auth:
       type: none
@@ -2735,10 +2769,10 @@ serviceActions:
       method: post
       resourcePath: /migration/ns/{nsId}/infraWithDefaults
       description: "Migrate an infrastructure to the multi-cloud infrastructure (Infra) with defaults.\n\nBy default this API runs synchronously. Send header `Prefer: respond-async` to run it\nasynchronously instead: receive 202 Accepted with a reqId, then poll GET /request/{reqId}\n(status flow: Handling → Success / Error). Only the \"respond-async\" token is recognized."
-    MigrateK8sCluster:
+    MigrateK8sInfra:
       method: post
       resourcePath: /migration/ns/{nsId}/k8sCluster
-      description: "Migrate an on-premise Kubernetes cluster to a managed K8s service (e.g., AWS EKS).\n\n**Workflow**:\n1. Call POST /recommendation/k8sCluster to get a RecommendedK8sInfra.\n2. Pass the recommendation result as-is to this endpoint.\n\n**Internal steps**: VNet → SSH Key → Security Group → K8s Cluster → Node Groups\n\nBy default this API runs synchronously (EKS takes ~10-20 min). Send header\n`Prefer: respond-async` to run it asynchronously: receive 202 Accepted with a\nreqId, then poll GET /request/{reqId} to check status."
+      description: "Migrate an on-premise Kubernetes cluster to a managed K8s service (e.g., AWS EKS).\n\n**Workflow**:\n1. Call POST /recommendation/k8sCluster to get a RecommendK8sInfraResponse.\n2. Pass the recommendation result as-is to this endpoint.\n\n**Internal steps**: VNet → SSH Key → Security Group → K8s Cluster → Node Groups\n\n**Long-running** — This API waits for the cluster to become Active, up to **40 min**\n(typically **~10-20 min** on EKS), then adds the node groups, so it can take longer still.\n\nBy default it runs synchronously, so configure your own HTTP client to wait that long —\nmost client defaults cut the connection first. Send header `Prefer: respond-async` to run it\nasynchronously instead: receive 202 Accepted with a reqId, then poll GET /request/{reqId}\n(status flow: Handling → Success / Error). Only the \"respond-async\" token is recognized.\n\nIf a synchronous connection drops the migration keeps running on the server; poll\nGET /migration/ns/{nsId}/k8sCluster/{k8sClusterId} with the cluster name you supplied."
     MigrateNlbs:
       method: post
       resourcePath: /migration/middleware/ns/{nsId}/infra/{infraId}/nlb
@@ -2755,10 +2789,10 @@ serviceActions:
       method: post
       resourcePath: /recommendation/infraWithNlb
       description: "Perform NLB-aware infrastructure recommendation and return multiple Pareto-optimal candidates.\n\nThe recommendation engine:\n1. Correlates NLB backend server IPs with source Node IPs\n2. Normalizes backend ports via majority vote when ports differ\n3. Assigns NLB-related nodes to shared NodeGroups (N:1), unrelated nodes to individual NodeGroups (1:1)\n4. Finds ranked compatible spec-image pairs per NodeGroup (representative node for NLB groups)\n5. Generates up to `limit` candidates — candidate i uses the i-th ranked pair per NodeGroup\n6. Maps source NLB configuration to target cloud NLB model (same for all candidates)\n\n[Note] `sourceInfra.nlbs` must be populated (HAProxy frontend-backend pairs from cm-honeybee).\n\n[Note] The returned `targetInfra.nodeGroups[].name` values are referenced by `targetNlbList[].targetGroup.nodeGroupId`.\nUse the same NodeGroup IDs when calling POST /migration/infra so that the NLB migration can reference them immediately.\n\n---\n## CSP-Specific NLB Notes\n\nAWS:\n- Port translation supported (e.g., listener 9999 → backend 8086).\n- DNS endpoint; allow ~5 min for propagation after creation.\n- [Auto] SG rule for backend port opened from 0.0.0.0/0.\n\nAzure:\n- Port translation supported. DNS + static IP endpoint.\n- [Auto] Health check timeout omitted (not supported by Azure).\n\nGCP:\n- Port translation NOT supported; traffic arrives at backend VMs on the listener port.\n- [Auto] Listener port is forced equal to the backend port — clients must connect on the application port (e.g., 8086, not 9999).\n- IP-only endpoint (no DNS name).\n\nIBM:\n- Port translation supported.\n- Listener address is assigned asynchronously; re-query if the address is empty after migration.\n- [Auto] Health check timeout forced strictly less than the interval.\n---"
-    RecommendK8sCluster:
+    RecommendK8sInfra:
       method: post
       resourcePath: /recommendation/k8sCluster
-      description: "Recommend a complete K8s cluster configuration based on on-premise infra data from cm-honeybee.\nReturns a RecommendedK8sInfra that can be passed directly to the K8s migration API.\n\n**Required Parameters**: `desiredProvider`, `desiredRegion`\n**Input**: On-premise infra model (from honeybee /infra/refined) with K8s cluster info and node roles"
+      description: "Recommend a complete K8s infra configuration based on on-premise infra data from cm-honeybee.\nReturns a RecommendK8sInfraResponse that can be passed directly to the K8s migration API.\n\n**Required Parameters**: `desiredProvider`, `desiredRegion`\n**Input**: On-premise infra model (from honeybee /infra/refined) with K8s cluster info and node roles"
     RecommendK8sNodeGroupImages:
       method: post
       resourcePath: /recommendation/resources/k8sNodeGroupImages
@@ -3250,31 +3284,6 @@ serviceActions:
       method: post
       resourcePath: /velero/migration/precheck
       description: "Check source cluster, target cluster, and the S3 object store before executing Velero migration."
-  cm-honeybee-agent:
-    Get-Data-Info:
-      method: get
-      resourcePath: /data
-      description: "Get data migration information (required fields only for data migration)."
-    Get-Helm-Info:
-      method: get
-      resourcePath: /helm
-      description: "Get helm information."
-    Get-Infra-Info:
-      method: get
-      resourcePath: /infra
-      description: "Get infra information."
-    Get-Kubernetes-Info:
-      method: get
-      resourcePath: /kubernetes
-      description: "Get kubernetes information."
-    Get-Software-Info:
-      method: get
-      resourcePath: /software
-      description: "Get software information."
-    Health-Check-Readyz:
-      method: get
-      resourcePath: /readyz
-      description: "Check Honeybee Agent is ready"
   cm-honeybee:
     Create-Connection-Info:
       method: post
