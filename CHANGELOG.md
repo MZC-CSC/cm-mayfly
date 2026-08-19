@@ -1,3 +1,8 @@
+# v0.6.1
+### Changelog
+* Move cm-damselfly to `0.6.2`. It carries the migration models the rest of the lineup already builds against — infra model `v0.1.12` (cm-beetle/imdl) and software model `v0.1.3` (cm-grasshopper/smdl) — where `0.6.1` still served `v0.1.11` and `v0.1.1`. The infra model follows CB-Tumblebug `0.12.30`, whose `InfraInfo` replaced the single `postCommand`/`postCommandResult` pair with the phased `postCommands`/`postCommandResults` set, and the software model adds snap and flatpak package types. The rest of the lineup is unchanged from `v0.6.0`.
+* No REST surface change: cm-damselfly still exposes the same 29 operations on the same paths, so `conf/api.yaml` records only the new version.
+
 # v0.6.0
 ### Changelog
 * Move every C-Mig framework in the lineup to `0.6.0` — cm-beetle, cm-butterfly (api and front), cm-honeybee, cm-cicada, airflow-server, cm-grasshopper and cm-ant. cm-damselfly runs `0.6.1`, which supersedes its `0.6.0`. The Cloud-Barista components keep their own versioning and follow what cm-beetle `v0.6.0` lists as its related components: cb-tumblebug `0.12.30`, cb-spider `0.12.42`, cb-mapui `0.12.56`, mc-terrarium `0.1.4`. `conf/api.yaml` is regenerated from each subsystem's swagger at those tags and follows the same set.
