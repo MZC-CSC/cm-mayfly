@@ -87,7 +87,7 @@ services:
       latest: https://raw.githubusercontent.com/cloud-barista/cm-ant/main/api/swagger.json
       release: https://raw.githubusercontent.com/cloud-barista/cm-ant/{release}/api/swagger.json
   cm-beetle:
-    version: 0.5.11(latest)
+    version: 0.6.0(latest)
     baseurl: http://cm-beetle:8056/beetle
     auth:
       type: basic
@@ -100,14 +100,14 @@ services:
   cm-butterfly-api:
     # No public swagger source is registered for this service, so the version is
     # kept in step with the image tag in conf/docker/docker-compose.yaml by hand.
-    version: 0.5.5
+    version: 0.6.0
     #baseurl: http://localhost:4000
     baseurl: http://cm-butterfly-api:4000
     auth:
       type: none
       
   cm-cicada:
-    version: 0.5.3(latest)
+    version: 0.6.0(latest)
     baseurl: http://cm-cicada:8083/cicada
     auth:
       type: none
@@ -116,7 +116,7 @@ services:
       release: https://raw.githubusercontent.com/cloud-barista/cm-cicada/{release}/pkg/api/rest/docs/swagger.json
 
   cm-honeybee:
-    version: 0.5.12(latest)
+    version: 0.6.0(latest)
     baseurl: http://cm-honeybee:8081/honeybee
     auth:
       type: none
@@ -149,7 +149,7 @@ services:
   #    release: https://raw.githubusercontent.com/cloud-barista/cm-honeybee/{release}/agent/pkg/api/rest/docs/swagger.json
 
   cm-grasshopper:
-    version: 0.5.3(latest)
+    version: 0.6.0(latest)
     baseurl: http://cm-grasshopper:8084/grasshopper
     auth:
       type: none
@@ -2769,10 +2769,10 @@ serviceActions:
       method: post
       resourcePath: /migration/ns/{nsId}/infraWithDefaults
       description: "Migrate an infrastructure to the multi-cloud infrastructure (Infra) with defaults.\n\nBy default this API runs synchronously. Send header `Prefer: respond-async` to run it\nasynchronously instead: receive 202 Accepted with a reqId, then poll GET /request/{reqId}\n(status flow: Handling → Success / Error). Only the \"respond-async\" token is recognized."
-    MigrateK8sCluster:
+    MigrateK8sInfra:
       method: post
       resourcePath: /migration/ns/{nsId}/k8sCluster
-      description: "Migrate an on-premise Kubernetes cluster to a managed K8s service (e.g., AWS EKS).\n\n**Workflow**:\n1. Call POST /recommendation/k8sCluster to get a RecommendedK8sInfra.\n2. Pass the recommendation result as-is to this endpoint.\n\n**Internal steps**: VNet → SSH Key → Security Group → K8s Cluster → Node Groups\n\nBy default this API runs synchronously (EKS takes ~10-20 min). Send header\n`Prefer: respond-async` to run it asynchronously: receive 202 Accepted with a\nreqId, then poll GET /request/{reqId} to check status."
+      description: "Migrate an on-premise Kubernetes cluster to a managed K8s service (e.g., AWS EKS).\n\n**Workflow**:\n1. Call POST /recommendation/k8sCluster to get a RecommendK8sInfraResponse.\n2. Pass the recommendation result as-is to this endpoint.\n\n**Internal steps**: VNet → SSH Key → Security Group → K8s Cluster → Node Groups\n\n**Long-running** — This API waits for the cluster to become Active, up to **40 min**\n(typically **~10-20 min** on EKS), then adds the node groups, so it can take longer still.\n\nBy default it runs synchronously, so configure your own HTTP client to wait that long —\nmost client defaults cut the connection first. Send header `Prefer: respond-async` to run it\nasynchronously instead: receive 202 Accepted with a reqId, then poll GET /request/{reqId}\n(status flow: Handling → Success / Error). Only the \"respond-async\" token is recognized.\n\nIf a synchronous connection drops the migration keeps running on the server; poll\nGET /migration/ns/{nsId}/k8sCluster/{k8sClusterId} with the cluster name you supplied."
     MigrateNlbs:
       method: post
       resourcePath: /migration/middleware/ns/{nsId}/infra/{infraId}/nlb
@@ -2789,10 +2789,10 @@ serviceActions:
       method: post
       resourcePath: /recommendation/infraWithNlb
       description: "Perform NLB-aware infrastructure recommendation and return multiple Pareto-optimal candidates.\n\nThe recommendation engine:\n1. Correlates NLB backend server IPs with source Node IPs\n2. Normalizes backend ports via majority vote when ports differ\n3. Assigns NLB-related nodes to shared NodeGroups (N:1), unrelated nodes to individual NodeGroups (1:1)\n4. Finds ranked compatible spec-image pairs per NodeGroup (representative node for NLB groups)\n5. Generates up to `limit` candidates — candidate i uses the i-th ranked pair per NodeGroup\n6. Maps source NLB configuration to target cloud NLB model (same for all candidates)\n\n[Note] `sourceInfra.nlbs` must be populated (HAProxy frontend-backend pairs from cm-honeybee).\n\n[Note] The returned `targetInfra.nodeGroups[].name` values are referenced by `targetNlbList[].targetGroup.nodeGroupId`.\nUse the same NodeGroup IDs when calling POST /migration/infra so that the NLB migration can reference them immediately.\n\n---\n## CSP-Specific NLB Notes\n\nAWS:\n- Port translation supported (e.g., listener 9999 → backend 8086).\n- DNS endpoint; allow ~5 min for propagation after creation.\n- [Auto] SG rule for backend port opened from 0.0.0.0/0.\n\nAzure:\n- Port translation supported. DNS + static IP endpoint.\n- [Auto] Health check timeout omitted (not supported by Azure).\n\nGCP:\n- Port translation NOT supported; traffic arrives at backend VMs on the listener port.\n- [Auto] Listener port is forced equal to the backend port — clients must connect on the application port (e.g., 8086, not 9999).\n- IP-only endpoint (no DNS name).\n\nIBM:\n- Port translation supported.\n- Listener address is assigned asynchronously; re-query if the address is empty after migration.\n- [Auto] Health check timeout forced strictly less than the interval.\n---"
-    RecommendK8sCluster:
+    RecommendK8sInfra:
       method: post
       resourcePath: /recommendation/k8sCluster
-      description: "Recommend a complete K8s cluster configuration based on on-premise infra data from cm-honeybee.\nReturns a RecommendedK8sInfra that can be passed directly to the K8s migration API.\n\n**Required Parameters**: `desiredProvider`, `desiredRegion`\n**Input**: On-premise infra model (from honeybee /infra/refined) with K8s cluster info and node roles"
+      description: "Recommend a complete K8s infra configuration based on on-premise infra data from cm-honeybee.\nReturns a RecommendK8sInfraResponse that can be passed directly to the K8s migration API.\n\n**Required Parameters**: `desiredProvider`, `desiredRegion`\n**Input**: On-premise infra model (from honeybee /infra/refined) with K8s cluster info and node roles"
     RecommendK8sNodeGroupImages:
       method: post
       resourcePath: /recommendation/resources/k8sNodeGroupImages
@@ -3284,33 +3284,6 @@ serviceActions:
       method: post
       resourcePath: /velero/migration/precheck
       description: "Check source cluster, target cluster, and the S3 object store before executing Velero migration."
-  # cm-honeybee-agent — commented out with the service entry above.
-  #
-  #cm-honeybee-agent:
-  #  Get-Data-Info:
-  #    method: get
-  #    resourcePath: /data
-  #    description: "Get data migration information (required fields only for data migration)."
-  #  Get-Helm-Info:
-  #    method: get
-  #    resourcePath: /helm
-  #    description: "Get helm information."
-  #  Get-Infra-Info:
-  #    method: get
-  #    resourcePath: /infra
-  #    description: "Get infra information."
-  #  Get-Kubernetes-Info:
-  #    method: get
-  #    resourcePath: /kubernetes
-  #    description: "Get kubernetes information."
-  #  Get-Software-Info:
-  #    method: get
-  #    resourcePath: /software
-  #    description: "Get software information."
-  #  Health-Check-Readyz:
-  #    method: get
-  #    resourcePath: /readyz
-  #    description: "Check Honeybee Agent is ready"
   cm-honeybee:
     Create-Connection-Info:
       method: post
