@@ -752,11 +752,16 @@ services:
       - ./data/cm-cicada/cicada_root:/cicada_root:rw
     environment:
       - CMCICADA_ROOT=/cicada_root
-      # cm-cicada calls cm-damselfly, cm-beetle and cb-tumblebug. Those credentials are
-      # currently hardcoded as default/default in cm-cicada.yaml, so they only work while
-      # the called services also use the defaults. We pass the shared .env values here so
-      # that once cm-cicada reads its API credentials from the environment, non-default
-      # credentials work without a compose change on our side.
+      # cm-cicada calls cm-damselfly, cm-beetle and cb-tumblebug, and takes those
+      # credentials from its own config file. Since 0.6.0 that file resolves ${VAR}
+      # against the environment, so conf/cm-cicada/conf/cm-cicada.yaml names these
+      # variables instead of carrying default/default as literals, and a changed
+      # password now reaches cm-cicada like it reaches every other service.
+      #
+      # A referenced variable that is not set is an error there, not an empty value —
+      # an empty credential would leave a service that comes up healthy and then fails
+      # every workflow with an unhelpful Unauthorized. All six are validated as
+      # required before any container starts.
       - DAMSELFLY_API_USERNAME=${DAMSELFLY_API_USERNAME}
       - DAMSELFLY_API_PASSWORD=${DAMSELFLY_API_PASSWORD}
       - BEETLE_API_USERNAME=${BEETLE_API_USERNAME}
