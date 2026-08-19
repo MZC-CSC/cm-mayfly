@@ -224,23 +224,23 @@ $ ./mayfly infra info --human
 ┌───────────────────────┬──────────────┬──────────────┬──────────┬──────────────┬──────────────┬─────────────────┐
 │SERVICE                │VERSION       │STATUS        │HEALTHY   │INTERNAL      │EXTERNAL      │IMAGE SIZE       │
 ├───────────────────────┼──────────────┼──────────────┼──────────┼──────────────┼──────────────┼─────────────────┤
-│cb-spider              │0.12.35       │running       │✓         │1024          │1024          │436MB            │
-│cb-tumblebug           │0.12.25       │running       │✓         │1323          │1323          │146MB            │
+│cb-spider              │0.12.42       │running       │✓         │1024          │1024          │436MB            │
+│cb-tumblebug           │0.12.30       │running       │✓         │1323          │1323          │146MB            │
 │cb-tumblebug-etcd      │v3.6.11       │running       │✓         │2379-2380     │2379-2380     │60.4MB           │
 │cb-tumblebug-postgres  │16-alpine     │running       │✓         │5432          │6432          │281MB            │
-│cb-mapui               │0.12.50       │running       │✓         │1324          │1324          │422MB            │
-│cm-beetle              │0.5.6         │running       │✓         │8056          │8056          │138MB            │
-│cm-butterfly-api       │0.5.1         │running       │✓         │4000          │4000          │94.4MB           │
-│cm-butterfly-front     │0.5.1         │running       │✓         │80            │80            │54.6MB           │
+│cb-mapui               │0.12.56       │running       │✓         │1324          │1324          │422MB            │
+│cm-beetle              │0.6.0         │running       │✓         │8056          │8056          │138MB            │
+│cm-butterfly-api       │0.6.0         │running       │✓         │4000          │4000          │94.4MB           │
+│cm-butterfly-front     │0.6.0         │running       │✓         │80            │80            │54.6MB           │
 │cm-butterfly-db        │14-alpine     │running       │✓         │5432          │543           │278MB            │
-│cm-honeybee            │0.5.3         │running       │✓         │8081          │8081          │56.2MB           │
-│cm-damselfly           │0.5.3         │running       │✓         │8088          │8088          │100MB            │
-│cm-cicada              │0.5.2         │running       │✓         │8083          │8083          │890MB            │
+│cm-honeybee            │0.6.0         │running       │✓         │8081          │8081          │56.2MB           │
+│cm-damselfly           │0.6.1         │running       │✓         │8088          │8088          │100MB            │
+│cm-cicada              │0.6.0         │running       │✓         │8083          │8083          │890MB            │
 │airflow-redis          │7.2-alpine    │running       │✓         │6379          │6379          │40.9MB           │
 │airflow-mysql          │8.0-debian    │running       │✓         │3306          │3306          │610MB            │
-│airflow-server         │0.5.2         │running       │✓         │5555          │5555          │1.57GB           │
-│cm-grasshopper         │0.5.2         │running       │✓         │8084          │8084          │448MB            │
-│cm-ant                 │0.5.4         │running       │✓         │8880          │8880          │192MB            │
+│airflow-server         │0.6.0         │running       │✓         │5555          │5555          │1.57GB           │
+│cm-grasshopper         │0.6.0         │running       │✓         │8084          │8084          │448MB            │
+│cm-ant                 │0.6.0         │running       │✓         │8880          │8880          │192MB            │
 │ant-postgres           │latest-pg16   │running       │✓         │5432          │5432          │1.04GB           │
 └───────────────────────┴──────────────┴──────────────┴──────────┴──────────────┴──────────────┴─────────────────┘
 ```
@@ -256,7 +256,7 @@ $ ./mayfly infra info -s cb-tumblebug --human
 ┌──────────────────────┬──────────────┬──────────────┬──────────┬──────────────┬──────────────┬─────────────────┐
 │SERVICE               │VERSION       │STATUS        │HEALTHY   │INTERNAL      │EXTERNAL      │IMAGE SIZE       │
 ├──────────────────────┼──────────────┼──────────────┼──────────┼──────────────┼──────────────┼─────────────────┤
-│cb-tumblebug          │0.12.25       │running       │✓         │1323          │1323          │146MB            │
+│cb-tumblebug          │0.12.30       │running       │✓         │1323          │1323          │146MB            │
 └──────────────────────┴──────────────┴──────────────┴──────────┴──────────────┴──────────────┴─────────────────┘
 
 📦 Dependency Services:
@@ -264,7 +264,7 @@ $ ./mayfly infra info -s cb-tumblebug --human
 │SERVICE                │VERSION       │STATUS        │HEALTHY   │INTERNAL      │EXTERNAL      │IMAGE SIZE       │
 ├───────────────────────┼──────────────┼──────────────┼──────────┼──────────────┼──────────────┼─────────────────┤
 │cb-tumblebug-etcd      │v3.6.11       │running       │✓         │2379-2380     │2379-2380     │60.4MB           │
-│cb-spider              │0.12.35       │running       │✓         │1024          │1024          │436MB            │
+│cb-spider              │0.12.42       │running       │✓         │1024          │1024          │436MB            │
 │cb-tumblebug-postgres  │16-alpine     │running       │✓         │5432          │6432          │281MB            │
 └───────────────────────┴──────────────┴──────────────┴──────────┴──────────────┴──────────────┴─────────────────┘
 ```
@@ -278,23 +278,23 @@ $ ./mayfly infra info --test-versions
 
 SERVICE              COMPOSE_VERSION STATUS       ACTUAL_VERSION  IMAGE_SIZE
 --------------------------------------------------------------------------------
-cb-spider            0.12.35         running      0.12.35         436MB
-cb-tumblebug         0.12.25         running      0.12.25         146MB
+cb-spider            0.12.42         running      0.12.42         436MB
+cb-tumblebug         0.12.30         running      0.12.30         146MB
 cb-tumblebug-etcd    v3.6.11         running      v3.6.11         60.4MB
 cb-tumblebug-postgres 16-alpine       running      16-alpine       281MB
-cb-mapui             0.12.50         running      0.12.50         422MB
-cm-beetle            0.5.6           running      0.5.6           137MB
-cm-butterfly-api     0.5.1           running      0.5.1           94.4MB
-cm-butterfly-front   0.5.1           Not Running  -               -
+cb-mapui             0.12.56         running      0.12.56         422MB
+cm-beetle            0.6.0           running      0.6.0           137MB
+cm-butterfly-api     0.6.0           running      0.6.0           94.4MB
+cm-butterfly-front   0.6.0           Not Running  -               -
 cm-butterfly-db      14-alpine       running      14-alpine       278MB
-cm-honeybee          0.5.3           running      0.5.3           56.2MB
-cm-damselfly         0.5.3           running      0.5.3           100MB
-cm-cicada            0.5.2           running      0.5.2           890MB
+cm-honeybee          0.6.0           running      0.6.0           56.2MB
+cm-damselfly         0.6.1           running      0.6.1           100MB
+cm-cicada            0.6.0           running      0.6.0           890MB
 airflow-redis        7.2-alpine      running      7.2-alpine      40.9MB
 airflow-mysql        8.0-debian      running      8.0-debian      610MB
-airflow-server       0.5.2 (Not Downloaded) running      0.5.1           1.57GB
-cm-grasshopper       0.5.2           running      0.5.2           448MB
-cm-ant               0.5.4           running      0.5.4           193MB
+airflow-server       0.6.0 (Not Downloaded) running      0.5.3           1.57GB
+cm-grasshopper       0.6.0           running      0.6.0           448MB
+cm-ant               0.6.0           running      0.6.0           193MB
 ant-postgres         latest-pg16     running      latest-pg16     1.07GB
 
 Legend:
@@ -312,7 +312,7 @@ Legend:
 - **이미지 관리**: 로컬에 다운로드되지 않은 이미지("Not Downloaded") 확인 가능
 - **버전 불일치 감지**: docker-compose.yaml 버전과 실제 실행 버전이 다른 경우를 쉽게 발견
   - `(Not Downloaded)` 표시는 docker-compose.yaml에 정의된 이미지가 로컬에 없을 때 나타남
-  - 이 경우 실제로는 다른 버전의 이미지로 컨테이너가 실행 중일 수 있음 (예: airflow-server의 경우 0.5.2가 정의되어 있지만 0.5.1로 실행 중)
+  - 이 경우 실제로는 다른 버전의 이미지로 컨테이너가 실행 중일 수 있음 (예: airflow-server의 경우 0.6.0이 정의되어 있지만 0.5.3으로 실행 중)
 
 **--human 옵션의 장점:**
 - **직관적**: docker-compose.yaml에 정의된 모든 서비스가 한눈에 보임
@@ -358,9 +358,9 @@ $ ./mayfly infra update -d
 ┌────────────────────┬───────────────┬─────────┬─────────────┐
 │ Service            │ Local         │ Compose │ Hub updated │
 ├────────────────────┼───────────────┼─────────┼─────────────┤
-│ cb-spider          │ not_installed │ 0.12.35 │ 2026-06-30  │ ✗
-│ cb-tumblebug       │ 0.12.25       │ 0.12.25 │ 2026-07-02  │ ✓
-│ cm-ant             │ 0.5.4         │ 0.5.7   │ 2026-07-21  │ ●
+│ cb-spider          │ not_installed │ 0.12.42 │ 2026-06-30  │ ✗
+│ cb-tumblebug       │ 0.12.30       │ 0.12.30 │ 2026-07-02  │ ✓
+│ cm-beetle          │ 0.5.11        │ 0.6.0   │ 2026-07-21  │ ●
 │ cm-butterfly-front │ edge          │ edge    │ 2026-07-24  │ ◆
 └────────────────────┴───────────────┴─────────┴─────────────┘
 
@@ -722,7 +722,7 @@ $ ./remove_all.sh
 
 | 바꾼 것 | 예 | 명령 | 이유 |
 |---------|-----|------|------|
-| **이미지 태그** | `cm-ant:0.5.7` → `0.6.0` | `mayfly infra update` | 새 이미지를 내려받고 해당 서비스를 다시 만듭니다 |
+| **이미지 태그** | `cm-beetle:0.5.11` → `0.6.0` | `mayfly infra update` | 새 이미지를 내려받고 해당 서비스를 다시 만듭니다 |
 | **태그는 그대로인데 내용이 바뀜** | `edge`·`latest`가 새로 빌드됨 | `mayfly infra update` | 태그 이름이 같아도 내용이 다르면 갱신 대상으로 잡습니다 |
 | **docker-compose.yaml 설정** | 환경변수 추가, 볼륨·포트·healthcheck 변경 | **`mayfly infra run -s <서비스>`** | `update`는 *이미지* 기준으로 갱신 범위를 좁히므로, 이미지가 그대로인 서비스는 대상에서 빠집니다 |
 | **`.env` 값** | 비밀번호·포트 변경 | **`mayfly infra run -s <서비스>`** (그 값을 쓰는 서비스 전부) | `.env`는 컨테이너를 만들 때 치환됩니다 |
