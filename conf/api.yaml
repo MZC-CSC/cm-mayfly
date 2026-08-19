@@ -158,7 +158,7 @@ services:
       release: https://raw.githubusercontent.com/cloud-barista/cm-grasshopper/{release}/pkg/api/rest/docs/swagger.json
 
   cm-damselfly:
-    version: 0.6.1(latest)
+    version: 0.6.2(latest)
     baseurl: http://cm-damselfly:8088/damselfly
     auth: # cm-damselfly checks these only when DAMSELFLY_API_AUTH_ENABLED=true; otherwise they are ignored.
       type: basic
