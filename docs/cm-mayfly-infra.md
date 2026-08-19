@@ -188,6 +188,29 @@ $ ./mayfly infra info -t
 $ ./mayfly infra info --test-versions
 ```
 
+### OpenBao 인스턴스 상태
+
+`infra info` 는 라인업의 **OpenBao 인스턴스마다** 도달 여부·초기화·seal 상태를 따로 보여 줍니다. 인스턴스가 둘이므로 하나만 보고 판단할 수 없습니다.
+
+```
+[OpenBao: openbao]
+  API        : reachable=true initialized=true sealed=false
+  state      : ready
+
+[OpenBao: openbao-honeybee]
+  API        : reachable=true initialized=true sealed=false
+  state      : ready
+```
+
+| state | 뜻 | 조치 |
+|---|---|---|
+| `ready` | 열려 있고 시크릿을 읽을 수 있다 | — |
+| `sealed` | 잠겨 있어 시크릿을 읽을 수 없다 | 공용 `openbao` 는 unseal 사이드카가 다시 엽니다. 계속 잠겨 있으면 [openbao-unseal.md](./openbao-unseal.md) 참고 |
+| `uninitialized` | 아직 초기화되지 않았다 | **주인 서비스가 기동하면서 초기화합니다.** `openbao-honeybee` 는 cm-honeybee 가 초기화하므로 손으로 만들지 마세요 |
+| `reachable=false` | 컨테이너가 응답하지 않는다 | 그 컨테이너가 떠 있는지 먼저 확인 |
+
+> 상태는 **컨테이너 이름이 아니라 compose 서비스로** 조회합니다. 호스트에 같은 이름의 컨테이너가 여럿 있을 수 있기 때문입니다.
+
 ### 실행 결과 예시
 
 #### 기본 info 명령
@@ -224,23 +247,23 @@ $ ./mayfly infra info --human
 ┌───────────────────────┬──────────────┬──────────────┬──────────┬──────────────┬──────────────┬─────────────────┐
 │SERVICE                │VERSION       │STATUS        │HEALTHY   │INTERNAL      │EXTERNAL      │IMAGE SIZE       │
 ├───────────────────────┼──────────────┼──────────────┼──────────┼──────────────┼──────────────┼─────────────────┤
-│cb-spider              │0.12.35       │running       │✓         │1024          │1024          │436MB            │
-│cb-tumblebug           │0.12.25       │running       │✓         │1323          │1323          │146MB            │
+│cb-spider              │0.12.42       │running       │✓         │1024          │1024          │436MB            │
+│cb-tumblebug           │0.12.30       │running       │✓         │1323          │1323          │146MB            │
 │cb-tumblebug-etcd      │v3.6.11       │running       │✓         │2379-2380     │2379-2380     │60.4MB           │
 │cb-tumblebug-postgres  │16-alpine     │running       │✓         │5432          │6432          │281MB            │
-│cb-mapui               │0.12.50       │running       │✓         │1324          │1324          │422MB            │
-│cm-beetle              │0.5.6         │running       │✓         │8056          │8056          │138MB            │
-│cm-butterfly-api       │0.5.1         │running       │✓         │4000          │4000          │94.4MB           │
-│cm-butterfly-front     │0.5.1         │running       │✓         │80            │80            │54.6MB           │
+│cb-mapui               │0.12.56       │running       │✓         │1324          │1324          │422MB            │
+│cm-beetle              │0.6.0         │running       │✓         │8056          │8056          │138MB            │
+│cm-butterfly-api       │0.6.0         │running       │✓         │4000          │4000          │94.4MB           │
+│cm-butterfly-front     │0.6.0         │running       │✓         │80            │80            │54.6MB           │
 │cm-butterfly-db        │14-alpine     │running       │✓         │5432          │543           │278MB            │
-│cm-honeybee            │0.5.3         │running       │✓         │8081          │8081          │56.2MB           │
-│cm-damselfly           │0.5.3         │running       │✓         │8088          │8088          │100MB            │
-│cm-cicada              │0.5.2         │running       │✓         │8083          │8083          │890MB            │
+│cm-honeybee            │0.6.0         │running       │✓         │8081          │8081          │56.2MB           │
+│cm-damselfly           │0.6.1         │running       │✓         │8088          │8088          │100MB            │
+│cm-cicada              │0.6.0         │running       │✓         │8083          │8083          │890MB            │
 │airflow-redis          │7.2-alpine    │running       │✓         │6379          │6379          │40.9MB           │
 │airflow-mysql          │8.0-debian    │running       │✓         │3306          │3306          │610MB            │
-│airflow-server         │0.5.2         │running       │✓         │5555          │5555          │1.57GB           │
-│cm-grasshopper         │0.5.2         │running       │✓         │8084          │8084          │448MB            │
-│cm-ant                 │0.5.4         │running       │✓         │8880          │8880          │192MB            │
+│airflow-server         │0.6.0         │running       │✓         │5555          │5555          │1.57GB           │
+│cm-grasshopper         │0.6.0         │running       │✓         │8084          │8084          │448MB            │
+│cm-ant                 │0.6.0         │running       │✓         │8880          │8880          │192MB            │
 │ant-postgres           │latest-pg16   │running       │✓         │5432          │5432          │1.04GB           │
 └───────────────────────┴──────────────┴──────────────┴──────────┴──────────────┴──────────────┴─────────────────┘
 ```
@@ -256,7 +279,7 @@ $ ./mayfly infra info -s cb-tumblebug --human
 ┌──────────────────────┬──────────────┬──────────────┬──────────┬──────────────┬──────────────┬─────────────────┐
 │SERVICE               │VERSION       │STATUS        │HEALTHY   │INTERNAL      │EXTERNAL      │IMAGE SIZE       │
 ├──────────────────────┼──────────────┼──────────────┼──────────┼──────────────┼──────────────┼─────────────────┤
-│cb-tumblebug          │0.12.25       │running       │✓         │1323          │1323          │146MB            │
+│cb-tumblebug          │0.12.30       │running       │✓         │1323          │1323          │146MB            │
 └──────────────────────┴──────────────┴──────────────┴──────────┴──────────────┴──────────────┴─────────────────┘
 
 📦 Dependency Services:
@@ -264,7 +287,7 @@ $ ./mayfly infra info -s cb-tumblebug --human
 │SERVICE                │VERSION       │STATUS        │HEALTHY   │INTERNAL      │EXTERNAL      │IMAGE SIZE       │
 ├───────────────────────┼──────────────┼──────────────┼──────────┼──────────────┼──────────────┼─────────────────┤
 │cb-tumblebug-etcd      │v3.6.11       │running       │✓         │2379-2380     │2379-2380     │60.4MB           │
-│cb-spider              │0.12.35       │running       │✓         │1024          │1024          │436MB            │
+│cb-spider              │0.12.42       │running       │✓         │1024          │1024          │436MB            │
 │cb-tumblebug-postgres  │16-alpine     │running       │✓         │5432          │6432          │281MB            │
 └───────────────────────┴──────────────┴──────────────┴──────────┴──────────────┴──────────────┴─────────────────┘
 ```
@@ -278,23 +301,23 @@ $ ./mayfly infra info --test-versions
 
 SERVICE              COMPOSE_VERSION STATUS       ACTUAL_VERSION  IMAGE_SIZE
 --------------------------------------------------------------------------------
-cb-spider            0.12.35         running      0.12.35         436MB
-cb-tumblebug         0.12.25         running      0.12.25         146MB
+cb-spider            0.12.42         running      0.12.42         436MB
+cb-tumblebug         0.12.30         running      0.12.30         146MB
 cb-tumblebug-etcd    v3.6.11         running      v3.6.11         60.4MB
 cb-tumblebug-postgres 16-alpine       running      16-alpine       281MB
-cb-mapui             0.12.50         running      0.12.50         422MB
-cm-beetle            0.5.6           running      0.5.6           137MB
-cm-butterfly-api     0.5.1           running      0.5.1           94.4MB
-cm-butterfly-front   0.5.1           Not Running  -               -
+cb-mapui             0.12.56         running      0.12.56         422MB
+cm-beetle            0.6.0           running      0.6.0           137MB
+cm-butterfly-api     0.6.0           running      0.6.0           94.4MB
+cm-butterfly-front   0.6.0           Not Running  -               -
 cm-butterfly-db      14-alpine       running      14-alpine       278MB
-cm-honeybee          0.5.3           running      0.5.3           56.2MB
-cm-damselfly         0.5.3           running      0.5.3           100MB
-cm-cicada            0.5.2           running      0.5.2           890MB
+cm-honeybee          0.6.0           running      0.6.0           56.2MB
+cm-damselfly         0.6.1           running      0.6.1           100MB
+cm-cicada            0.6.0           running      0.6.0           890MB
 airflow-redis        7.2-alpine      running      7.2-alpine      40.9MB
 airflow-mysql        8.0-debian      running      8.0-debian      610MB
-airflow-server       0.5.2 (Not Downloaded) running      0.5.1           1.57GB
-cm-grasshopper       0.5.2           running      0.5.2           448MB
-cm-ant               0.5.4           running      0.5.4           193MB
+airflow-server       0.6.0 (Not Downloaded) running      0.5.3           1.57GB
+cm-grasshopper       0.6.0           running      0.6.0           448MB
+cm-ant               0.6.0           running      0.6.0           193MB
 ant-postgres         latest-pg16     running      latest-pg16     1.07GB
 
 Legend:
@@ -312,7 +335,7 @@ Legend:
 - **이미지 관리**: 로컬에 다운로드되지 않은 이미지("Not Downloaded") 확인 가능
 - **버전 불일치 감지**: docker-compose.yaml 버전과 실제 실행 버전이 다른 경우를 쉽게 발견
   - `(Not Downloaded)` 표시는 docker-compose.yaml에 정의된 이미지가 로컬에 없을 때 나타남
-  - 이 경우 실제로는 다른 버전의 이미지로 컨테이너가 실행 중일 수 있음 (예: airflow-server의 경우 0.5.2가 정의되어 있지만 0.5.1로 실행 중)
+  - 이 경우 실제로는 다른 버전의 이미지로 컨테이너가 실행 중일 수 있음 (예: airflow-server의 경우 0.6.0이 정의되어 있지만 0.5.3으로 실행 중)
 
 **--human 옵션의 장점:**
 - **직관적**: docker-compose.yaml에 정의된 모든 서비스가 한눈에 보임
@@ -358,9 +381,9 @@ $ ./mayfly infra update -d
 ┌────────────────────┬───────────────┬─────────┬─────────────┐
 │ Service            │ Local         │ Compose │ Hub updated │
 ├────────────────────┼───────────────┼─────────┼─────────────┤
-│ cb-spider          │ not_installed │ 0.12.35 │ 2026-06-30  │ ✗
-│ cb-tumblebug       │ 0.12.25       │ 0.12.25 │ 2026-07-02  │ ✓
-│ cm-ant             │ 0.5.4         │ 0.5.7   │ 2026-07-21  │ ●
+│ cb-spider          │ not_installed │ 0.12.42 │ 2026-06-30  │ ✗
+│ cb-tumblebug       │ 0.12.30       │ 0.12.30 │ 2026-07-02  │ ✓
+│ cm-beetle          │ 0.5.11        │ 0.6.0   │ 2026-07-21  │ ●
 │ cm-butterfly-front │ edge          │ edge    │ 2026-07-24  │ ◆
 └────────────────────┴───────────────┴─────────┴─────────────┘
 
@@ -483,8 +506,9 @@ $ ./mayfly infra logs --no-follow
 - `cb-tumblebug-postgres`: CB-Tumblebug PostgreSQL
 - `cb-mapui`: CB-MapUI
 - `mc-terrarium`: MC-Terrarium
-- `openbao`: OpenBao (시크릿 관리)
+- `openbao`: OpenBao (시크릿 관리 — cb-tumblebug·mc-terrarium 이 사용)
 - `openbao-unseal`: OpenBao unseal 사이드카
+- `openbao-honeybee`: cm-honeybee 전용 OpenBao (수집 대상 서버의 SSH 접속 정보·소스 쪽 CSP 자격증명)
 - `cm-beetle`: CM-Beetle
 - `cm-butterfly-api`: CM-Butterfly API (백엔드)
 - `cm-butterfly-front`: CM-Butterfly Front (웹 콘솔)
@@ -659,6 +683,27 @@ $ ./mayfly infra remove -s "cb-tumblebug,cb-spider"
 $ ./mayfly infra remove -s cb-tumblebug --clean-db
 ```
 
+#### cm-honeybee 를 지우면 `openbao-honeybee` 도 함께 지워진다
+
+라인업에는 OpenBao 가 **둘** 있습니다. 공용 `openbao` 는 cb-tumblebug·mc-terrarium 이 CSP 자격증명을 두는 곳이고, `openbao-honeybee` 는 **cm-honeybee 전용**으로 수집 대상 서버의 SSH 접속 정보와 소스 쪽 CSP 자격증명을 담습니다.
+
+```bash
+# cm-honeybee 와 openbao-honeybee 를 함께 제거 (공용 openbao 는 남는다)
+$ ./mayfly infra remove -s cm-honeybee --clean-db
+
+# 전체 --clean-db 도 openbao-honeybee 는 지우고 공용 openbao 는 보존한다
+$ ./mayfly infra remove --clean-db
+```
+
+**전용 인스턴스만 남겨 둘 수는 없습니다.** 남겨도 쓸 수 없기 때문입니다.
+
+- 담긴 시크릿이 cm-honeybee 의 데이터를 키로 합니다(`secret/honeybee/csp/<sgId>`·`secret/honeybee/ssh/<connId>`). 주인 DB 를 지우면 이미 없는 소스 그룹을 가리키는 시크릿만 남습니다.
+- **unseal 키가 저장소 옆이 아니라 cm-honeybee 의 DB 안에 있습니다.** 주인을 지우고 저장소만 남기면 *초기화돼 있어서 다시 초기화할 수도 없고, 키가 사라져서 열 수도 없는* 상태가 됩니다. cm-honeybee 문서는 이 상태를 볼륨을 손으로 지우는 것 말고는 복구 방법이 없다고 적고 있습니다.
+
+즉 전용 인스턴스를 보존해도 얻는 것이 없고, 오히려 cm-honeybee 가 다음 기동에서 빈 저장소를 초기화하지 못하게 막습니다.
+
+> **기존 환경을 이어받을 수 없습니다.** cm-honeybee 가 시크릿 저장소를 옮긴 것은 라인업 갱신에서의 파괴적 변경이라, 그 전 환경은 `--clean-db` 로 정리하고 다시 구축해야 합니다.
+
 `--clean-db`는 `-s` 유무와 무관하게 **대상 서비스의 이미지를 삭제**합니다. 이미지가 남아 있으면 `docker compose up`이 로컬 이미지를 그대로 재사용하기 때문에, `edge`·`latest`처럼 태그가 이동하는 이미지에서는 *삭제 후 다시 받았는데도 예전 버전이 뜨는* 현상이 생깁니다. 이미지를 지우면 다음 `mayfly infra run`이 반드시 새로 받습니다.
 
 이미지를 그대로 두고 컨테이너만 재기동하고 싶다면 `--clean-db` 없이 실행하세요(재다운로드 없음).
@@ -722,7 +767,7 @@ $ ./remove_all.sh
 
 | 바꾼 것 | 예 | 명령 | 이유 |
 |---------|-----|------|------|
-| **이미지 태그** | `cm-ant:0.5.7` → `0.6.0` | `mayfly infra update` | 새 이미지를 내려받고 해당 서비스를 다시 만듭니다 |
+| **이미지 태그** | `cm-beetle:0.5.11` → `0.6.0` | `mayfly infra update` | 새 이미지를 내려받고 해당 서비스를 다시 만듭니다 |
 | **태그는 그대로인데 내용이 바뀜** | `edge`·`latest`가 새로 빌드됨 | `mayfly infra update` | 태그 이름이 같아도 내용이 다르면 갱신 대상으로 잡습니다 |
 | **docker-compose.yaml 설정** | 환경변수 추가, 볼륨·포트·healthcheck 변경 | **`mayfly infra run -s <서비스>`** | `update`는 *이미지* 기준으로 갱신 범위를 좁히므로, 이미지가 그대로인 서비스는 대상에서 빠집니다 |
 | **`.env` 값** | 비밀번호·포트 변경 | **`mayfly infra run -s <서비스>`** (그 값을 쓰는 서비스 전부) | `.env`는 컨테이너를 만들 때 치환됩니다 |

@@ -125,6 +125,10 @@ down or look at it, `infra remove`, `stop`, `info` and `logs` run without it.
 | `BUTTERFLY_DB_USER` | ✅ | `butterflyadmin` | cm-butterfly-api, cm-butterfly-db |
 | `BUTTERFLY_DB_PASSWORD` | ✅ | (secret) | cm-butterfly-api, cm-butterfly-db |
 | `BUTTERFLY_DB_NAME` | ✅ | `butterfly-db` | cm-butterfly-api, cm-butterfly-db |
+| `HEALTH_CHECK_INTERVAL_SEC` | ⚪ optional | `300` | cm-butterfly-api — how often the console asks each linked service whether it is answering |
+| `HEALTH_CHECK_FAILURE_THRESHOLD` | ⚪ optional | `2` | cm-butterfly-api — how many failed checks in a row before the console reports a service as down |
+
+> The console also authenticates to the subsystems, and it does so with the same `.env` values as the rest of the lineup — `SPIDER_*`, `TB_API_*`, `BEETLE_API_*`, `DAMSELFLY_API_*`. It used to carry `default` compiled in, which happened to match while nobody changed a password and turned into a 401 the moment somebody did. A variable that resolves to nothing now stops the container and names it, rather than falling back.
 
 ### Airflow (workflow engine backing cm-cicada)
 | Variable | Req | Default | Used by |
@@ -134,6 +138,19 @@ down or look at it, `infra remove`, `stop`, `info` and `logs` run without it.
 | `AIRFLOW_DB_ROOT_PASSWORD` | ✅ | (secret) | airflow-mysql |
 | `AIRFLOW_DB_NAME` | ✅ | `airflow` | airflow-mysql, airflow-server |
 | `AIRFLOW_JWT_SECRET` | ✅ | (blank — auto-generated) | airflow-server — see [§4](#4-runtime-generated-values-vault_token-airflow_jwt_secret) |
+| `AIRFLOW_DB_BINLOG_ARGS` | ⚪ optional | `--skip-log-bin` | airflow-mysql — see the note below |
+
+> **`AIRFLOW_DB_BINLOG_ARGS` turns MySQL's binary log off by default.** The binary log is what replication replays, what point-in-time recovery replays over a backup, and what change-data-capture subscribes to. `airflow-mysql` here is a single instance with none of those, so nothing reads it — and on one host it had grown to 926 MB across nine files until image pulls started failing for want of space.
+>
+> Set it to a retention argument instead of `--skip-log-bin` if you do need the log. **`0` does not mean off** — MySQL reads it as *never expire*, which is the opposite.
+
+### Container logs
+| Variable | Req | Default | Used by |
+|----------|:---:|---------|---------|
+| `LOG_MAX_SIZE` | ⚪ optional | `50m` | every service — the size at which a container's log file is rotated |
+| `LOG_MAX_FILE` | ⚪ optional | `10` | every service — how many rotated files are kept |
+
+> These are **per service**, and the lineup runs around 20 of them. At the defaults that is a ceiling of roughly 10 GB if every service fills its quota, so watch the disk before raising either.
 
 ### Email notifications (optional)
 | Variable | Req | Default | Used by |

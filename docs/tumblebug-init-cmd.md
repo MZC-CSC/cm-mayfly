@@ -127,16 +127,16 @@ $ newgrp docker
 ✅ CB-Tumblebug is running.
 ✅ OpenBao VAULT_TOKEN is present and consistent.
 ✅ CB-Tumblebug is healthy.
-✅ Version confirmed: 0.12.25
-Downloading CB-Tumblebug v0.12.25 version from GitHub...
+✅ Version confirmed: 0.12.30
+Downloading CB-Tumblebug v0.12.30 version from GitHub...
 ```
 
 ### Scenario 2: Existing Directory with Wrong Version
 ```bash
 Different version of Tumblebug found in /path/to/cb-tumblebug folder.
-Current running version: v0.12.25
+Current running version: v0.12.30
 Existing directory version: a1b2c3d4e5f6
-The running version (v0.12.25) exists in the repository but is not currently checked out.
+The running version (v0.12.30) exists in the repository but is not currently checked out.
 
 Please select an option:
 1. Delete and download fresh
