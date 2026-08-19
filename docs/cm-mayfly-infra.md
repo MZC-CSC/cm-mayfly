@@ -188,6 +188,29 @@ $ ./mayfly infra info -t
 $ ./mayfly infra info --test-versions
 ```
 
+### OpenBao 인스턴스 상태
+
+`infra info` 는 라인업의 **OpenBao 인스턴스마다** 도달 여부·초기화·seal 상태를 따로 보여 줍니다. 인스턴스가 둘이므로 하나만 보고 판단할 수 없습니다.
+
+```
+[OpenBao: openbao]
+  API        : reachable=true initialized=true sealed=false
+  state      : ready
+
+[OpenBao: openbao-honeybee]
+  API        : reachable=true initialized=true sealed=false
+  state      : ready
+```
+
+| state | 뜻 | 조치 |
+|---|---|---|
+| `ready` | 열려 있고 시크릿을 읽을 수 있다 | — |
+| `sealed` | 잠겨 있어 시크릿을 읽을 수 없다 | 공용 `openbao` 는 unseal 사이드카가 다시 엽니다. 계속 잠겨 있으면 [openbao-unseal.md](./openbao-unseal.md) 참고 |
+| `uninitialized` | 아직 초기화되지 않았다 | **주인 서비스가 기동하면서 초기화합니다.** `openbao-honeybee` 는 cm-honeybee 가 초기화하므로 손으로 만들지 마세요 |
+| `reachable=false` | 컨테이너가 응답하지 않는다 | 그 컨테이너가 떠 있는지 먼저 확인 |
+
+> 상태는 **컨테이너 이름이 아니라 compose 서비스로** 조회합니다. 호스트에 같은 이름의 컨테이너가 여럿 있을 수 있기 때문입니다.
+
 ### 실행 결과 예시
 
 #### 기본 info 명령
@@ -483,8 +506,9 @@ $ ./mayfly infra logs --no-follow
 - `cb-tumblebug-postgres`: CB-Tumblebug PostgreSQL
 - `cb-mapui`: CB-MapUI
 - `mc-terrarium`: MC-Terrarium
-- `openbao`: OpenBao (시크릿 관리)
+- `openbao`: OpenBao (시크릿 관리 — cb-tumblebug·mc-terrarium 이 사용)
 - `openbao-unseal`: OpenBao unseal 사이드카
+- `openbao-honeybee`: cm-honeybee 전용 OpenBao (수집 대상 서버의 SSH 접속 정보·소스 쪽 CSP 자격증명)
 - `cm-beetle`: CM-Beetle
 - `cm-butterfly-api`: CM-Butterfly API (백엔드)
 - `cm-butterfly-front`: CM-Butterfly Front (웹 콘솔)
@@ -658,6 +682,27 @@ $ ./mayfly infra remove -s "cb-tumblebug,cb-spider"
 # 특정 서비스 + 해당 서비스의 이미지 + 호스트 데이터(conf/docker/data/<서비스>)까지 제거
 $ ./mayfly infra remove -s cb-tumblebug --clean-db
 ```
+
+#### cm-honeybee 를 지우면 `openbao-honeybee` 도 함께 지워진다
+
+라인업에는 OpenBao 가 **둘** 있습니다. 공용 `openbao` 는 cb-tumblebug·mc-terrarium 이 CSP 자격증명을 두는 곳이고, `openbao-honeybee` 는 **cm-honeybee 전용**으로 수집 대상 서버의 SSH 접속 정보와 소스 쪽 CSP 자격증명을 담습니다.
+
+```bash
+# cm-honeybee 와 openbao-honeybee 를 함께 제거 (공용 openbao 는 남는다)
+$ ./mayfly infra remove -s cm-honeybee --clean-db
+
+# 전체 --clean-db 도 openbao-honeybee 는 지우고 공용 openbao 는 보존한다
+$ ./mayfly infra remove --clean-db
+```
+
+**전용 인스턴스만 남겨 둘 수는 없습니다.** 남겨도 쓸 수 없기 때문입니다.
+
+- 담긴 시크릿이 cm-honeybee 의 데이터를 키로 합니다(`secret/honeybee/csp/<sgId>`·`secret/honeybee/ssh/<connId>`). 주인 DB 를 지우면 이미 없는 소스 그룹을 가리키는 시크릿만 남습니다.
+- **unseal 키가 저장소 옆이 아니라 cm-honeybee 의 DB 안에 있습니다.** 주인을 지우고 저장소만 남기면 *초기화돼 있어서 다시 초기화할 수도 없고, 키가 사라져서 열 수도 없는* 상태가 됩니다. cm-honeybee 문서는 이 상태를 볼륨을 손으로 지우는 것 말고는 복구 방법이 없다고 적고 있습니다.
+
+즉 전용 인스턴스를 보존해도 얻는 것이 없고, 오히려 cm-honeybee 가 다음 기동에서 빈 저장소를 초기화하지 못하게 막습니다.
+
+> **기존 환경을 이어받을 수 없습니다.** cm-honeybee 가 시크릿 저장소를 옮긴 것은 라인업 갱신에서의 파괴적 변경이라, 그 전 환경은 `--clean-db` 로 정리하고 다시 구축해야 합니다.
 
 `--clean-db`는 `-s` 유무와 무관하게 **대상 서비스의 이미지를 삭제**합니다. 이미지가 남아 있으면 `docker compose up`이 로컬 이미지를 그대로 재사용하기 때문에, `edge`·`latest`처럼 태그가 이동하는 이미지에서는 *삭제 후 다시 받았는데도 예전 버전이 뜨는* 현상이 생깁니다. 이미지를 지우면 다음 `mayfly infra run`이 반드시 새로 받습니다.
 
