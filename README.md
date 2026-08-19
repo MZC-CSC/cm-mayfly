@@ -196,12 +196,12 @@ Example output:
 ```
 [v]Status of Cloud-Migrator runtime images
 CONTAINER           REPOSITORY                     TAG                 IMAGE ID            SIZE
-cb-tumblebug        cloudbaristaorg/cb-tumblebug   0.12.25              d4c2abdc0e21        118MB
+cb-tumblebug        cloudbaristaorg/cb-tumblebug   0.12.30              d4c2abdc0e21        118MB
 ```
 
-Based on the cb-tumblebug version (e.g., v0.12.25), download the corresponding cb-tumblebug repository:
+Based on the cb-tumblebug version (e.g., v0.12.30), download the corresponding cb-tumblebug repository:
 ```
-$ git clone -b v0.12.25 https://github.com/cloud-barista/cb-tumblebug.git cb-tumblebug-v0.12.25
+$ git clone -b v0.12.30 https://github.com/cloud-barista/cb-tumblebug.git cb-tumblebug-v0.12.30
 ```
 
 Then follow the detailed guide at:
