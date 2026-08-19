@@ -216,7 +216,7 @@ Swagger 문서를 어디서 읽을지는 아래 세 옵션 중 **하나**로 지
 
 - `-f <파일 또는 URL>` : 로컬 파일 경로 또는 `http(s)` URL을 직접 지정
 - `--latest` : 각 서비스의 최신 Swagger URL 사용 (api.yaml의 `services.<svc>.swagger.latest`)
-- `--release <tag>` : 특정 릴리스 태그의 Swagger 사용 (api.yaml의 `services.<svc>.swagger.release`, URL의 `{release}`가 태그로 치환됨. 예: `--release v0.5.2`)
+- `--release <tag>` : 특정 릴리스 태그의 Swagger 사용 (api.yaml의 `services.<svc>.swagger.release`, URL의 `{release}`가 태그로 치환됨. 예: `--release v0.6.0`)
 
 `--latest`·`--release`는 api.yaml에 등록된 **Swagger URL 레지스트리**를 이용합니다. 각 서비스의 `services.<svc>.swagger` 항목에 아래처럼 latest/release URL이 정의되어 있습니다.
 ```
@@ -251,7 +251,7 @@ $ ./mayfly api tool -f https://.../swagger.json --service cm-ant --apply
 $ ./mayfly api tool -f ./cm-ant.swagger.json --service cm-ant --action GetEstimateCost --apply
 
 # 특정 릴리스 태그의 Swagger를 사용
-$ ./mayfly api tool --release v0.5.2 --service cb-spider --apply
+$ ./mayfly api tool --release v0.12.42 --service cb-spider --apply
 ```
 
 **[실행 결과 예시]**   
@@ -259,7 +259,7 @@ $ ./mayfly api tool --release v0.5.2 --service cb-spider --apply
 ```
 $ ./mayfly api tool -f ./cb-tumblebug.json --service cb-tumblebug
 
-# cb-tumblebug  (version=0.12.25)
+# cb-tumblebug  (version=0.12.30)
     GetAvailableK8sClusterNodeImage:
       method: get
       resourcePath: /availableK8sClusterNodeImage

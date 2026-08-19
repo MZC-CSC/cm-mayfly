@@ -3,8 +3,6 @@
 #
 # In open-source contributions, the human author is expected to create commits and open pull requests. Under current open-source license frameworks (DCO, Sign-off, CLA, etc.) AI-attributed commits may have unclear implications. Following the community proposal from 2026-05-08, until the project policy is finalized, AI direct commit signoff and co-authored-by records are prohibited.
 #
-# Canonical source: https://github.com/MZC-CSC/cmig-workflow/blob/main/conf/workflow-templates/no-ai-trace.yml
-# Reference policy: https://github.com/MZC-CSC/cmig-workflow/blob/main/POLICY-AI-TRACE-GUARD.md
 # Local path in target repo: .github/workflows/no-ai-trace.yml
 # ------------------------------------------------------------
 
