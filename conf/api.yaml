@@ -158,7 +158,7 @@ services:
       release: https://raw.githubusercontent.com/cloud-barista/cm-grasshopper/{release}/pkg/api/rest/docs/swagger.json
 
   cm-damselfly:
-    version: edge(latest)
+    version: 0.6.5(latest)
     baseurl: http://cm-damselfly:8088/damselfly
     auth: # cm-damselfly checks these only when DAMSELFLY_API_AUTH_ENABLED=true; otherwise they are ignored.
       type: basic
@@ -3403,6 +3403,18 @@ serviceActions:
       method: get
       resourcePath: /infra-model/{id}/convert
       description: "Get a stored infra migration user model converted to the struct of the cm-beetle/imdl tagged version given by 'modelVersion'. The stored model is not changed.\nOnly the conversion to the same or a newer version is allowed. A cloud model cannot be converted to a version older than v0.1.2, and a model whose stored version is not a cm-beetle/imdl tag cannot be converted.\nThe response has the fields of 'GET /infra-model/{id}', with the model version and 'onpremiseInfraModel' (or 'cloudInfraModel') converted, and 'conversion' added: 'originVersion' (the stored version), 'currentVersion' (the version of the returned model), 'converted' (false if the stored version is already the requested version), 'droppedFields' (the paths of the fields removed because the requested version does not have them) and 'warnings' (what could not be converted as it was).\nThe values are not changed by the conversion unless a field's structure requires it. e.g. the disk sizes are kept as they are although their unit was changed from GiB to GB in the comments of v0.1.11."
+    ConvertObjectStorageModel:
+      method: get
+      resourcePath: /object-storage-model/{id}/convert
+      description: "Get a stored object storage migration user model converted to the struct of the cm-beetle/imdl tagged version given by 'objectStorageModelVersion'. The stored model is not changed.\nOnly the conversion to the same or a newer version is allowed, and a model whose stored version is not a cm-beetle/imdl tag with the object storage model (v0.1.3 or later) cannot be converted.\nThe response has the fields of 'GET /object-storage-model/{id}', with 'objectStorageModelVersion' and 'sourceObjectStorageModel' (or 'targetObjectStorageModel') converted, and 'conversion' added: 'originVersion' (the stored version), 'currentVersion' (the version of the returned model), 'converted' (false if the stored version is already the requested version), 'droppedFields' (the paths of the fields removed because the requested version does not have them) and 'warnings' (what could not be converted as it was).\n[Migrations] v0.1.6: 'nameSeed' of 'targetObjectStorageModel' was removed (reported in 'droppedFields', and in 'warnings' if it has a value). v0.1.11: 'sourceObjectStorageModel', which described a single bucket, is converted to a group of buckets: the bucket fields are moved into 'sourceObjectStorages[0]'.\nIf a field of the stored model has a value which does not match the type of that field in the requested version, the model is not converted (400)."
+    ConvertRDBMSModel:
+      method: get
+      resourcePath: /rdbms-model/{id}/convert
+      description: "Get a stored RDBMS migration user model converted to the struct of the cm-beetle/imdl tagged version given by 'rdbmsModelVersion'. The stored model is not changed.\nOnly the conversion to the same or a newer version is allowed, and a model whose stored version is not a cm-beetle/imdl tag with the RDBMS model (v0.1.13 or later) cannot be converted.\nThe response has the fields of 'GET /rdbms-model/{id}', with 'rdbmsModelVersion' and 'sourceRDBMSModel' (or 'targetRDBMSModel') converted, and 'conversion' added: 'originVersion' (the stored version), 'currentVersion' (the version of the returned model), 'converted' (false if the stored version is already the requested version), 'droppedFields' (the paths of the fields removed because the requested version does not have them) and 'warnings' (what could not be converted as it was).\n[Migrations] v0.1.14: the instances of 'sourceRDBMSModel' were restructured into 'dbNode' and 'dbEngine' ('vcpu', 'memoryMb' and 'storageSizeGb' are converted as estimates and reported in 'warnings'). v0.1.18: 'characterSet' of the target databases is converted to 'charset'.\nIf a field of the stored model has a value which does not match the type of that field in the requested version, the model is not converted (400)."
+    ConvertSoftwareModel:
+      method: get
+      resourcePath: /software-model/{id}/convert
+      description: "Get a stored software migration user model converted to the struct of the cm-grasshopper/smdl tagged version given by 'modelVersion'. The stored model is not changed.\nOnly the conversion to the same or a newer version is allowed, and a model whose stored version is not a cm-grasshopper/smdl tag cannot be converted.\nThe response has the fields of 'GET /software-model/{id}', with 'softwareModelVersion' and 'sourceSoftwareModel' (or 'targetSoftwareModel') converted, and 'conversion' added: 'originVersion' (the stored version), 'currentVersion' (the version of the returned model), 'converted' (false if the stored version is already the requested version), 'droppedFields' (the paths of the fields removed because the requested version does not have them) and 'warnings' (what could not be converted as it was).\nIf a field of the stored model has a value which does not match the type of that field in the requested version (e.g. the free-form 'resources' of Kubernetes before v0.1.4), the model is not converted (400)."
     CreateCloudModel:
       method: post
       resourcePath: /cloudmodel
@@ -3411,10 +3423,18 @@ serviceActions:
       method: post
       resourcePath: /infra-model
       description: "Create a new infra migration user model. Use 'modelType' to select on-premise or cloud, and 'modelStage' to select the stage (source, planning or target) of the model.\nThe 'onpremiseInfraModel' (or 'cloudInfraModel') is validated against the 'OnpremInfra' (or 'RecommendedInfra') struct of the cm-beetle/imdl tagged version given by 'modelVersion', and is stored in that struct's form.\nThe former query parameters 'onpremModelVersion' and 'cloudModelVersion' are no longer accepted (400 Bad Request). Use 'modelVersion' instead.\n(The body schema below shows the struct of the cm-beetle/imdl version built into cm-damselfly. To see the struct of another version, choose 'imdl/{version}/doc.json' in 'Select a definition' at the top of Swagger UI.)\n[Lineage] 'parentId' is the ID of the infra model this model is derived from, which must be in the previous stage (source → planning → target): a source model for a planning model, and a planning model for a target model. The upstream fields of 'lineage' are derived from the parent.\n'lineage' can also be given explicitly (e.g. 'sourceGroupId'). The field of the model's own stage (e.g. 'planningModelId' of a planning model) is set to the ID of the created model by the server."
+    CreateObjectStorageModel:
+      method: post
+      resourcePath: /object-storage-model
+      description: "Create a new object storage migration user model. Use 'modelStage' to select the stage (source, planning or target) of the model.\nProvide 'sourceObjectStorageModel' for a source or planning model (modelStage=source or planning), or 'targetObjectStorageModel' for a target model (modelStage=target).\nThe 'sourceObjectStorageModel' (or 'targetObjectStorageModel') is validated against the 'SourceObjectStorage' (or 'RecommendedObjectStorage') struct of the cm-beetle/imdl tagged version given by 'objectStorageModelVersion', and is stored in that struct's form.\n'nodeId' is an optional identifier of the node the model is associated with.\n[Lineage] 'parentId' is the ID of the object storage model this model is derived from, which must be in the previous stage (source → planning → target): a source model for a planning model, and a planning model for a target model. The upstream fields of 'lineage' are derived from the parent.\n'lineage' can also be given explicitly (e.g. 'sourceGroupId'). The field of the model's own stage (e.g. 'planningModelId' of a planning model) is set to the ID of the created model by the server.\n(The body schema below shows the struct of the cm-beetle/imdl version built into cm-damselfly. To see the struct of another version, choose 'imdl/{version}/doc.json' in 'Select a definition' at the top of Swagger UI.)"
     CreateOnPremModel:
       method: post
       resourcePath: /onpremmodel
       description: "Create a new on-premise model with the given information."
+    CreateRDBMSModel:
+      method: post
+      resourcePath: /rdbms-model
+      description: "Create a new RDBMS migration user model. Use 'modelStage' to select the stage (source, planning or target) of the model.\nProvide 'sourceRDBMSModel' for a source or planning model (modelStage=source or planning), or 'targetRDBMSModel' for a target model (modelStage=target).\nThe 'sourceRDBMSModel' (or 'targetRDBMSModel') is validated against the 'SourceRDBMS' (or 'RecommendedRDBMS') struct of the cm-beetle/imdl tagged version given by 'rdbmsModelVersion', and is stored in that struct's form.\n'nodeId' is an optional identifier of the node the model is associated with.\n[Lineage] 'parentId' is the ID of the RDBMS model this model is derived from, which must be in the previous stage (source → planning → target): a source model for a planning model, and a planning model for a target model. The upstream fields of 'lineage' are derived from the parent.\n'lineage' can also be given explicitly (e.g. 'sourceGroupId'). The field of the model's own stage (e.g. 'planningModelId' of a planning model) is set to the ID of the created model by the server.\n(The body schema below shows the struct of the cm-beetle/imdl version built into cm-damselfly. To see the struct of another version, choose 'imdl/{version}/doc.json' in 'Select a definition' at the top of Swagger UI.)"
     CreateSoftwareModel:
       method: post
       resourcePath: /software-model
@@ -3435,10 +3455,18 @@ serviceActions:
       method: delete
       resourcePath: /infra-model/{id}
       description: "Delete a specific infra migration user model by ID. Works for both on-premise and cloud models without requiring the caller to specify the model type.\nIf the model is referred to by the lineage of other models, it is not deleted (409 Conflict with the referring models in 'list') unless 'force' is true."
+    DeleteObjectStorageModel:
+      method: delete
+      resourcePath: /object-storage-model/{id}
+      description: "Delete a specific object storage migration user model by ID. Use 'modelStage' to specify the stage (source, planning or target) of the model.\nIf the model is referred to by the lineage of other models, it is not deleted (409 Conflict with the referring models in 'list') unless 'force' is true."
     DeleteOnPremModel:
       method: delete
       resourcePath: /onpremmodel/{id}
       description: "Delete a on-premise model with the given information."
+    DeleteRDBMSModel:
+      method: delete
+      resourcePath: /rdbms-model/{id}
+      description: "Delete a specific RDBMS migration user model by ID. Use 'modelStage' to specify the stage (source, planning or target) of the model.\nIf the model is referred to by the lineage of other models, it is not deleted (409 Conflict with the referring models in 'list') unless 'force' is true."
     DeleteSoftwareModel:
       method: delete
       resourcePath: /software-model/{id}
@@ -3470,11 +3498,19 @@ serviceActions:
     GetModels:
       method: get
       resourcePath: /model
-      description: "Get a list of migration user models of both categories (infra and software).\nUse 'modelStage' to select the stage (source, planning or target) of the models, and 'category' to select the category. If omitted, the models of all stages (or both categories) are returned.\nThe models can be further filtered by their 'lineage' (e.g. 'sourceGroupId' to get all the models derived from a source group)."
+      description: "Get a list of migration user models of all categories (infra, software, rdbms and objectStorage).\nUse 'modelStage' to select the stage (source, planning or target) of the models, and 'category' to select the category. If omitted, the models of all stages (or all categories) are returned.\nThe models can be further filtered by their 'lineage' (e.g. 'sourceGroupId' to get all the models derived from a source group)."
     GetModelsVersions:
       method: get
       resourcePath: /model/version
-      description: "Get all tagged versions (in ascending order) of the migration models. 'onpremModelVersion' and 'cloudModelVersion' are the 'imdl/vX.Y.Z' tags of cm-beetle, and 'softwareModelVersion' is the 'smdl/vX.Y.Z' tags of cm-grasshopper."
+      description: "Get all tagged versions (in ascending order) of the migration models. 'onpremModelVersion' and 'cloudModelVersion' are the 'imdl/vX.Y.Z' tags of cm-beetle, 'softwareModelVersion' is the 'smdl/vX.Y.Z' tags of cm-grasshopper, 'rdbmsModelVersion' is the 'imdl/vX.Y.Z' tags of cm-beetle which have the RDBMS model (v0.1.13 or later), and 'objectStorageModelVersion' is the 'imdl/vX.Y.Z' tags of cm-beetle which have the object storage model (v0.1.3 or later)."
+    GetObjectStorageModel:
+      method: get
+      resourcePath: /object-storage-model/{id}
+      description: "Get a specific object storage migration user model by ID. Use 'modelStage' to specify the stage (source, planning or target) of the model.\nThe 'lineage' of the model refers to its upstream models and itself."
+    GetObjectStorageModels:
+      method: get
+      resourcePath: /object-storage-model
+      description: "Get a list of object storage migration user models. Use 'modelStage' to select the stage (source, planning or target) of the models.\nThe models can be further filtered by their 'lineage' (e.g. 'sourceModelId' to find the models derived from a source model)."
     GetOnPremModel:
       method: get
       resourcePath: /onpremmodel/{id}
@@ -3483,6 +3519,14 @@ serviceActions:
       method: get
       resourcePath: /onpremmodel
       description: "Get a list of on-premise models."
+    GetRDBMSModel:
+      method: get
+      resourcePath: /rdbms-model/{id}
+      description: "Get a specific RDBMS migration user model by ID. Use 'modelStage' to specify the stage (source, planning or target) of the model.\nThe 'lineage' of the model refers to its upstream models and itself."
+    GetRDBMSModels:
+      method: get
+      resourcePath: /rdbms-model
+      description: "Get a list of RDBMS migration user models. Use 'modelStage' to select the stage (source, planning or target) of the models.\nThe models can be further filtered by their 'lineage' (e.g. 'sourceModelId' to find the models derived from a source model)."
     GetSoftwareModel:
       method: get
       resourcePath: /software-model/{id}
@@ -3523,10 +3567,18 @@ serviceActions:
       method: put
       resourcePath: /infra-model/{id}
       description: "Update a specific infra migration user model by ID. Use 'modelType' to specify whether it is an on-premise or cloud model.\nThe model stage is changed to 'modelStage' if it is given, and is preserved otherwise.\nThe model version is preserved, and 'onpremiseInfraModel' (or 'cloudInfraModel') is validated against the struct of that cm-beetle/imdl tagged version.\n[Lineage] The stored 'lineage' is preserved if neither 'lineage' nor 'parentId' is given. If 'lineage' is given, it replaces the stored one. If 'parentId' is given, the upstream fields are derived from that model in the previous stage (source → planning → target).\nThe stage cannot be changed while the model is referred to by the lineage of other models (409 Conflict with the referring models in 'list')."
+    UpdateObjectStorageModel:
+      method: put
+      resourcePath: /object-storage-model/{id}
+      description: "Update a specific object storage migration user model by ID.\nThe model stage is changed to 'modelStage' if it is given, and is preserved otherwise.\nProvide 'sourceObjectStorageModel' if the (resulting) stage is source or planning, or 'targetObjectStorageModel' if it is target.\n'createTime' and 'objectStorageModelVersion' of the stored model are preserved, and 'sourceObjectStorageModel' (or 'targetObjectStorageModel') is validated against the struct of that cm-beetle/imdl tagged version.\n[Lineage] The stored 'lineage' is preserved if neither 'lineage' nor 'parentId' is given. If 'lineage' is given, it replaces the stored one. If 'parentId' is given, the upstream fields are derived from that object storage model in the previous stage (source → planning → target).\nThe stage cannot be changed while the model is referred to by the lineage of other models (409 Conflict with the referring models in 'list')."
     UpdateOnPremModel:
       method: put
       resourcePath: /onpremmodel/{id}
       description: "Update a on-premise model with the given information."
+    UpdateRDBMSModel:
+      method: put
+      resourcePath: /rdbms-model/{id}
+      description: "Update a specific RDBMS migration user model by ID.\nThe model stage is changed to 'modelStage' if it is given, and is preserved otherwise.\nProvide 'sourceRDBMSModel' if the (resulting) stage is source or planning, or 'targetRDBMSModel' if it is target.\n'createTime' and 'rdbmsModelVersion' of the stored model are preserved, and 'sourceRDBMSModel' (or 'targetRDBMSModel') is validated against the struct of that cm-beetle/imdl tagged version.\n[Lineage] The stored 'lineage' is preserved if neither 'lineage' nor 'parentId' is given. If 'lineage' is given, it replaces the stored one. If 'parentId' is given, the upstream fields are derived from that RDBMS model in the previous stage (source → planning → target).\nThe stage cannot be changed while the model is referred to by the lineage of other models (409 Conflict with the referring models in 'list')."
     UpdateSoftwareModel:
       method: put
       resourcePath: /software-model/{id}
