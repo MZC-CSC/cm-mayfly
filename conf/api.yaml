@@ -87,7 +87,7 @@ services:
       latest: https://raw.githubusercontent.com/cloud-barista/cm-ant/main/api/swagger.json
       release: https://raw.githubusercontent.com/cloud-barista/cm-ant/{release}/api/swagger.json
   cm-beetle:
-    version: 0.6.5(latest)
+    version: edge-c400528(latest)
     baseurl: http://cm-beetle:8056/beetle
     auth:
       type: basic
@@ -116,7 +116,7 @@ services:
       release: https://raw.githubusercontent.com/cloud-barista/cm-cicada/{release}/pkg/api/rest/docs/swagger.json
 
   cm-honeybee:
-    version: latest(latest)
+    version: edge-c18c97b(latest)
     baseurl: http://cm-honeybee:8081/honeybee
     auth:
       type: none
@@ -149,7 +149,7 @@ services:
   #    release: https://raw.githubusercontent.com/cloud-barista/cm-honeybee/{release}/agent/pkg/api/rest/docs/swagger.json
 
   cm-grasshopper:
-    version: 0.6.1(latest)
+    version: edge-194f462(latest)
     baseurl: http://cm-grasshopper:8084/grasshopper
     auth:
       type: none
@@ -2832,7 +2832,7 @@ serviceActions:
     CreateRDBMSDatabase:
       method: post
       resourcePath: /migration/middleware/ns/{nsId}/rdbms/{rdbmsId}/database
-      description: "Create a new logical database inside an existing managed RDBMS instance"
+      description: "Create a new logical database inside an existing managed RDBMS instance.\nPrivate RDBMS (publicAccess=false, requires CB-Tumblebug v0.13.9+): returns 422 Unprocessable Entity immediately when the target CSP or charset/collation options require direct SQL access (AWS, IBM, Azure charset-only, Tencent collation, NCP/NHN charset or collation).\nSee: https://github.com/cloud-barista/cm-beetle/blob/main/docs/feature-guide/middleware-rdbms.md#private-mode-publicaccessfalse-fast-fail-policy"
     CreateVNet:
       method: post
       resourcePath: /migration/ns/{nsId}/resources/vNet
@@ -2892,7 +2892,7 @@ serviceActions:
     DeleteRDBMSDatabase:
       method: delete
       resourcePath: /migration/middleware/ns/{nsId}/rdbms/{rdbmsId}/database/{dbName}
-      description: "Delete a logical database inside an existing managed RDBMS instance"
+      description: "Delete a logical database inside an existing managed RDBMS instance.\nPrivate RDBMS (publicAccess=false, requires CB-Tumblebug v0.13.9+): returns 422 Unprocessable Entity immediately for SQL-only CSPs (AWS, IBM) that have no native logical database API.\nSee: https://github.com/cloud-barista/cm-beetle/blob/main/docs/feature-guide/middleware-rdbms.md#private-mode-publicaccessfalse-fast-fail-policy"
     DeleteRequest:
       method: delete
       resourcePath: /request/{reqId}
@@ -2928,7 +2928,7 @@ serviceActions:
     GetAllRequests:
       method: get
       resourcePath: /requests
-      description: "Retrieves all API requests tracked by Beetle with optional filters.\n\n[Note]\n- Request tracking is managed independently by Beetle (not shared with Tumblebug).\n- This API only returns requests made to Beetle, not to Tumblebug.\n\n[Status Values]\n- Handling: Request is currently being processed\n- Success: Request completed successfully\n- Error: Request failed with an error\n\n[Retry Information]\n- retry.retryable: Whether the failed request can be retried (present only for retriable errors)\n- retry.retryAfter: Suggested retry delay in seconds\n- retry.retryReason: Human-readable reason for retry requirement (e.g., \"Rate Limit Exceeded\")"
+      description: "Retrieves API requests tracked by Beetle sorted by `startTime` descending (newest first), with optional filters and payload projection.\n\n[Note]\n- Request tracking is managed independently by Beetle.\n- Each entry includes `tumblebugSource` (`cm-beetle:{reqId}`) and `subRequestSummary` for cross-service correlation with CB-Tumblebug (`GET /tumblebug/requests?source=cm-beetle:{reqId}`).\n\n[Status Values]\n- Handling: Request is currently being processed\n- Success: Request completed successfully\n- Error: Request failed with an error\n\n[Retry Information]\n- retry.retryable: Whether the failed request can be retried (present only for retriable errors)\n- retry.retryAfter: Suggested retry delay in seconds\n- retry.retryReason: Human-readable reason for retry requirement (e.g., \"Rate Limit Exceeded\")"
     GetArtifact:
       method: get
       resourcePath: /artifacts/{id}
@@ -2988,7 +2988,7 @@ serviceActions:
     GetRDBMSSecureTransport:
       method: get
       resourcePath: /migration/middleware/ns/{nsId}/rdbms/{rdbmsId}/secure-transport
-      description: "Retrieve live TLS enforcement status, active cipher, and server CA certificate via CB-Tumblebug and CB-Spider"
+      description: "Retrieve live TLS enforcement status, active cipher, and server CA certificate via CB-Tumblebug and CB-Spider.\nPrivate RDBMS (publicAccess=false, requires CB-Tumblebug v0.13.9+): returns 422 Unprocessable Entity immediately across all CSPs because TLS/SQL probing requires direct network reachability to the DB port.\nSee: https://github.com/cloud-barista/cm-beetle/blob/main/docs/feature-guide/middleware-rdbms.md#post-migration-data-transfer-guide-public-vs-private-rdbms"
     GetRDBMSSupport:
       method: get
       resourcePath: /recommendation/middleware/rdbms/support
@@ -3000,7 +3000,7 @@ serviceActions:
     GetRequest:
       method: get
       resourcePath: /request/{reqId}
-      description: "Retrieves the details of a specific API request tracked by Beetle.\n\n[Note]\n- Request tracking is managed independently by Beetle (not shared with Tumblebug).\n- The reqId corresponds to the X-Request-Id header value from a previous API call.\n- Do NOT call Tumblebug's /request/{reqId} API with this reqId; each system manages its own request tracking.\n\n[Status Values]\n- Handling: Request is currently being processed\n- Success: Request completed successfully\n- Error: Request failed with an error\n\n[Retry Information]\n- retry.retryable: Whether the failed request can be retried (present only for retriable errors)\n- retry.retryAfter: Suggested retry delay in seconds\n- retry.retryReason: Human-readable reason for retry requirement (e.g., \"Rate Limit Exceeded\")"
+      description: "Retrieves the details of a specific API request tracked by Beetle, including correlated outbound CB-Tumblebug sub-requests.\n\n[Note]\n- Request tracking is managed independently by Beetle using `reqId` (from `X-Request-Id`).\n- Outbound state-changing and recommendation calls to CB-Tumblebug are recorded in `subRequests[]` with `subReqId` (`{reqId}-{seq}`) and `tumblebugSource` (`cm-beetle:{reqId}`).\n- Use `brief=true` during high-frequency polling to omit large request/response bodies while still receiving `status`, `subRequestSummary`, and `subRequests`.\n- Set `withTumblebug=true` to enrich each `subRequests[]` entry with live `upstreamStatus` and `upstreamProgress` from CB-Tumblebug `GET /request/{subReqId}`.\n\n[Status Values]\n- Handling: Request is currently being processed\n- Success: Request completed successfully\n- Error: Request failed with an error\n\n[Retry Information]\n- retry.retryable: Whether the failed request can be retried (present only for retriable errors)\n- retry.retryAfter: Suggested retry delay in seconds\n- retry.retryReason: Human-readable reason for retry requirement (e.g., \"Rate Limit Exceeded\")"
     GetSecurityPublicKey:
       method: get
       resourcePath: /migration/security/publicKey
@@ -3056,11 +3056,11 @@ serviceActions:
     ListRDBMSDatabases:
       method: get
       resourcePath: /migration/middleware/ns/{nsId}/rdbms/{rdbmsId}/database
-      description: "Retrieve the list of logical databases inside an existing managed RDBMS instance"
+      description: "Retrieve the list of logical databases inside an existing managed RDBMS instance.\nPrivate RDBMS (publicAccess=false, requires CB-Tumblebug v0.13.9+): returns 422 Unprocessable Entity immediately for SQL-only CSPs (AWS, IBM) that have no native logical database API.\nSee: https://github.com/cloud-barista/cm-beetle/blob/main/docs/feature-guide/middleware-rdbms.md#private-mode-publicaccessfalse-fast-fail-policy"
     MigrateData:
       method: post
       resourcePath: /migration/data
-      description: "By default this API runs synchronously and returns the migration result directly.\n\n[Async Operation (opt-in)]\n1. Send header `Prefer: respond-async` → Receive 202 Accepted with reqId\n2. Poll GET /request/{reqId} to check status\n3. Status flow: Handling → Success / Error\n* Only the \"respond-async\" preference token is recognized; other tokens (e.g. wait=N) are ignored.\n* If too many async jobs are already running, this returns 503 instead of 202; retry after the `Retry-After` seconds.\n\n[Endpoint Requirements]\n* Both source and destination must be remote endpoints (SSH or object storage)\n* Local filesystem access is not allowed for security reasons\n\n[Transfer Options]\n* Strategy: auto (default), direct, relay, ssh-agent-fwd-push, ssh-agent-fwd-pull\n* SSH: Supports PrivateKey content or PrivateKeyPath\n\n[Encryption Support]\n* To encrypt sensitive fields, first call GET /migration/data/encryptionKey\n* Encrypted requests include `encryptionKeyId` field\n* Server automatically detects and decrypts encrypted requests\n\n[Examples]\n* Test results: https://github.com/cloud-barista/cm-beetle/blob/main/docs/test-results-data-migration.md\n"
+      description: "By default this API runs synchronously and returns the migration result directly.\n\n[Async Operation (opt-in)]\n1. Send header `Prefer: respond-async` → Receive 202 Accepted with reqId\n2. Poll GET /request/{reqId} to check status\n3. Status flow: Handling → Success / Error\n* Only the \"respond-async\" preference token is recognized; other tokens (e.g. wait=N) are ignored.\n* If too many async jobs are already running, this returns 503 instead of 202; retry after the `Retry-After` seconds.\n\n[Endpoint Requirements]\n* Both source and destination must be remote endpoints (SSH or object storage)\n* Local filesystem access is not allowed for security reasons\n\n[Transfer Options]\n* Strategy: auto (default), direct, relay, ssh-agent-fwd-push, ssh-agent-fwd-pull\n* SSH: Supports PrivateKey content or PrivateKeyPath\n\n[Encryption Support]\n* To encrypt sensitive fields, first call GET /migration/data/encryptionKey\n* Encrypted requests include `encryptionKeyId` field\n* Server automatically detects and decrypts encrypted requests\n\n[Examples & Guides]\n* Data Transfer Feature Guide (hooks & workflows): https://github.com/cloud-barista/cm-beetle/blob/main/docs/feature-guide/data-transfer.md\n* Post-Migration Managed RDBMS Data Transfer (Public & Private): https://github.com/cloud-barista/cm-beetle/blob/main/docs/feature-guide/middleware-rdbms.md#post-migration-data-transfer-guide-public-vs-private-rdbms\n* Test results: https://github.com/cloud-barista/cm-beetle/blob/main/docs/test-results-data-migration.md\n"
     MigrateInfra:
       method: post
       resourcePath: /migration/ns/{nsId}/infra
@@ -3084,7 +3084,7 @@ serviceActions:
     MigrateRDBMS:
       method: post
       resourcePath: /migration/middleware/ns/{nsId}/rdbms
-      description: "Provision and migrate managed RDBMS / RDS instances in target cloud based on recommendation results (supports AWS RDS, GCP Cloud SQL, Azure Database, NCP Cloud DB, NHN RDS, Alibaba ApsaraDB, TencentDB, IBM Databases)\n\n[Note]\n- This API provisions managed RDBMS instances in the target cloud within the specified namespace.\n- Input should be the output from the RecommendRDBMS API with `adminUserName` and `adminUserPassword` set for each target instance.\n- Connection name is automatically resolved from CSP and region in the request body.\n\n[Note] `nameSeed` enables dynamic naming via **Late Binding**.\n- If `nameSeed` query param is set (e.g., `?nameSeed=my`), instance names are prefixed: `my-rdbms-01`.\n\nBy default this API runs synchronously. Send header `Prefer: respond-async` to run it\nasynchronously instead (recommended due to CSP RDS provisioning time of 5-10 minutes, or 35-45+ minutes for IBM dedicated flavors): receive 202 Accepted with a reqId.\n- IBM Cloud Databases hosting note: 'multitenant' shared model provisions in ~10 minutes, whereas Dedicated flavors ('b3c.*') take 35-45+ minutes. Ensure client/proxy timeouts are configured for >= 50 minutes if calling synchronously with dedicated flavors."
+      description: "Provision and migrate managed RDBMS / RDS instances in target cloud based on recommendation results (supports AWS RDS, GCP Cloud SQL, Azure Database, NCP Cloud DB, NHN RDS, Alibaba ApsaraDB, TencentDB, IBM Databases)\n\n[Note]\n- This API provisions managed RDBMS instances in the target cloud within the specified namespace.\n- Input should be the output from the RecommendRDBMS API with `adminUserName` and `adminUserPassword` set for each target instance.\n- Connection name is automatically resolved from CSP and region in the request body.\n\n[Note] `nameSeed` enables dynamic naming via **Late Binding**.\n- If `nameSeed` query param is set (e.g., `?nameSeed=my`), instance names are prefixed: `my-rdbms-01`.\n\nBy default this API runs synchronously. Send header `Prefer: respond-async` to run it\nasynchronously instead (recommended due to CSP RDS provisioning time of 5-10 minutes, or 35-45+ minutes for IBM dedicated flavors): receive 202 Accepted with a reqId.\n- IBM Cloud Databases hosting note: 'multitenant' shared model provisions in ~10 minutes, whereas Dedicated flavors ('b3c.*') take 35-45+ minutes. Ensure client/proxy timeouts are configured for >= 50 minutes if calling synchronously with dedicated flavors.\n- Private RDBMS (`publicAccess=false`, requires CB-Tumblebug v0.13.9+): on SQL-only CSPs (AWS, IBM), remote logical database creation is skipped with a warning log. Perform schema/data transfer inside the target VPC/VNet via `POST /migration/data` (`transx` hooks) or CM-Centipede.\n- Guide (Private RDBMS & Post-Migration Data Transfer): https://github.com/cloud-barista/cm-beetle/blob/main/docs/feature-guide/middleware-rdbms.md#post-migration-data-transfer-guide-public-vs-private-rdbms"
     PreviewInfra:
       method: post
       resourcePath: /naming/preview
@@ -3128,7 +3128,7 @@ serviceActions:
     RecommendRDBMS:
       method: post
       resourcePath: /recommendation/middleware/rdbms
-      description: "Recommend optimal Managed RDBMS / RDS (MySQL, MariaDB) instance specs, engine versions, and storage configurations for target cloud migration (supports AWS RDS, GCP Cloud SQL, Azure Database, Alibaba ApsaraDB, TencentDB, IBM Databases, NCP Cloud DB, NHN RDS)\n\n[Note] `desiredCsp` and `desiredRegion` are required.\n- `desiredCsp` and `desiredRegion` can be set in the query parameter or the request body.\n- If set in the request body, the query parameter values will be overridden.\n\n[Note] The recommended instance names use default patterns (`mig-rdbms-01`, `mig-rdbms-02`, ...).\n- To apply a naming prefix at migration time, use the `nameSeed` query parameter on the migration API.\n- IBM Cloud Databases hosting note: defaults to 'multitenant' shared model for fast provisioning (~10 minutes). Dedicated host flavors ('b3c.*') take 35-45+ minutes."
+      description: "Recommend optimal Managed RDBMS / RDS (MySQL, MariaDB) instance specs, engine versions, and storage configurations for target cloud migration (supports AWS RDS, GCP Cloud SQL, Azure Database, Alibaba ApsaraDB, TencentDB, IBM Databases, NCP Cloud DB, NHN RDS)\n\n[Note] `desiredCsp` and `desiredRegion` are required.\n- `desiredCsp` and `desiredRegion` can be set in the query parameter or the request body.\n- If set in the request body, the query parameter values will be overridden.\n\n[Note] The recommended instance names use default patterns (`mig-rdbms-01`, `mig-rdbms-02`, ...).\n- To apply a naming prefix at migration time, use the `nameSeed` query parameter on the migration API.\n- IBM Cloud Databases hosting note: defaults to 'multitenant' shared model for fast provisioning (~10 minutes). Dedicated host flavors ('b3c.*') take 35-45+ minutes.\n- Private RDBMS (`publicAccess=false`, requires CB-Tumblebug v0.13.9+): preserves original `charset`/`collation` for Tencent and Azure without silent mutation and emits `warnings` when direct SQL would trigger HTTP 422 (AWS, IBM, Tencent with collation, Azure charset-only).\n- Guide: https://github.com/cloud-barista/cm-beetle/blob/main/docs/feature-guide/middleware-rdbms.md#private-mode-publicaccessfalse-fast-fail-policy"
     RecommendSecurityGroups:
       method: post
       resourcePath: /recommendation/resources/securityGroups
@@ -3708,11 +3708,19 @@ serviceActions:
     Discover-Source-Group-Resources:
       method: get
       resourcePath: /source_group/{sgId}/discover
-      description: "Lists VMs / K8s clusters / object-storage buckets / network load balancers / managed databases reachable through the CSP connection bound to this SourceGroup. Used by the UI to populate ConnectionInfo selection."
+      description: "Lists VMs / K8s clusters / object-storage buckets / network load balancers / managed databases reachable through the CSP connection bound to this SourceGroup. Object-storage buckets are limited to the source group's region where the CSP reports a bucket's region (AWS), and carry that region. A resource type the CSP's driver has no handler for (k8s, nlb, rdbms) answers 200 with empty items and unsupported true, and so does object_storage on a CSP that reads buckets with S3 keys (GET /csp/{name} optional_credential_keys) when the source group credential has none. Used by the UI to populate ConnectionInfo selection."
     Get-Benchmark-Info:
       method: get
       resourcePath: /bench/{connId}
       description: "Get the benchmark information of the connection information."
+    Get-Bucket-Info-Refined:
+      method: get
+      resourcePath: /source_group/{sgId}/connection_info/{connId}/bucket/refined
+      description: "Get the bucket of a CSP object-storage connection in the source model cm-beetle recommends a target bucket from. The response is the same as data/refined of the connection. The values are those collected by import/bucket or import/infra. sourceCloud.region is the region the bucket was found in, or the source group's region where the CSP cannot tell."
+    Get-Bucket-Info-Source-Group-Refined:
+      method: get
+      resourcePath: /source_group/{sgId}/bucket/refined
+      description: "Get every collected bucket of the source group's CSP object-storage connections in the source model cm-beetle recommends target buckets from. The response is the same as data/refined of the group. Connections without a successfully collected bucket are left out, as are buckets found in a region other than the group's. sourceCloud.region is the group's region."
     Get-Connection-Info:
       method: get
       resourcePath: /source_group/{sgId}/connection_info/{connId}
@@ -3724,7 +3732,7 @@ serviceActions:
     Get-Csp:
       method: get
       resourcePath: /csp/{name}
-      description: "Return the credential keys, regions, and other metadata for the given CSP. Name is matched case-insensitively."
+      description: "Return the credential keys, regions, and other metadata for the given CSP. Name is matched case-insensitively. credential_keys must all be given to a csp source group; optional_credential_keys (S3AccessKey, S3SecretKey on ibm, openstack, kt, gcp, nhn and azure) may be given besides, all or none, and object_storage connections of those CSPs need them."
     Get-Data-Info:
       method: get
       resourcePath: /source_group/{sgId}/connection_info/{connId}/data
@@ -3732,7 +3740,7 @@ serviceActions:
     Get-Data-Info-Refined:
       method: get
       resourcePath: /source_group/{sgId}/connection_info/{connId}/data/refined
-      description: "Get the bucket of a CSP object-storage connection in the source model cm-beetle recommends a target bucket from. The values are those collected by import/infra."
+      description: "Get the bucket of a CSP object-storage connection in the source model cm-beetle recommends a target bucket from. The values are those collected by import/infra. sourceCloud.region is the region the bucket was found in, or the source group's region where the CSP cannot tell."
     Get-Data-Info-Source-Group:
       method: get
       resourcePath: /source_group/{sgId}/data
@@ -3740,7 +3748,7 @@ serviceActions:
     Get-Data-Info-Source-Group-Refined:
       method: get
       resourcePath: /source_group/{sgId}/data/refined
-      description: "Get every collected bucket of the source group's CSP object-storage connections in the source model cm-beetle recommends target buckets from. Connections without a collected bucket are left out."
+      description: "Get every collected bucket of the source group's CSP object-storage connections in the source model cm-beetle recommends target buckets from. Connections without a successfully collected bucket are left out, as are buckets found in a region other than the group's. sourceCloud.region is the group's region."
     Get-Db-Info:
       method: get
       resourcePath: /source_group/{sgId}/connection_info/{connId}/db
@@ -3788,7 +3796,7 @@ serviceActions:
     Get-Infra-Info-Refined:
       method: get
       resourcePath: /source_group/{sgId}/connection_info/{connId}/infra/refined
-      description: "Get the refined infra information of the connection information."
+      description: "Get the refined infra information of the connection information. A CSP VM the agent has not collected, or whose agent call failed after its CSP collection succeeded, is a node of its CSP data. A CSP resource other than a VM makes no node; a CSP k8s connection gives its cluster as k8sCluster, and a CSP nlb connection its NLB as an entry of nlbs."
     Get-Infra-Info-Source-Group:
       method: get
       resourcePath: /source_group/{sgId}/infra
@@ -3796,15 +3804,39 @@ serviceActions:
     Get-Infra-Info-Source-Group-Refined:
       method: get
       resourcePath: /source_group/{sgId}/infra/refined
-      description: "Get the refined infra information for all connections in the source group."
+      description: "Get the refined infra information of the source group. On-prem k8s connections and CSP resources other than VMs do not become nodes, and a connection whose infra has not been collected successfully is skipped, except a CSP VM whose CSP collection succeeded and only the agent call failed, which becomes a node of its CSP data. A CSP VM the agent has not collected is a node of its CSP data (name, VM id, spec, disks, addresses, image OS). The nlbs hold the NLBs found in HAProxy on the nodes and the CSP NLBs of the csp nlb connections."
+    Get-K8s-Info-Refined:
+      method: get
+      resourcePath: /source_group/{sgId}/connection_info/{connId}/k8s/refined
+      description: "Get the Kubernetes cluster collected from the connection: a CSP-managed cluster of a csp k8s connection, or the cluster the agent collected on a control plane node. k8sCluster is what infra/refined of the connection gives as k8sCluster. A managed cluster also carries a csp section with its node groups. A connection without a successfully collected cluster is a bad request."
+    Get-K8s-Info-Source-Group-Refined:
+      method: get
+      resourcePath: /source_group/{sgId}/k8s/refined
+      description: "Get the Kubernetes cluster of the source group, the one infra/refined of the group gives as k8sCluster. A cluster the agent collected is taken before a CSP-managed one; a managed one also carries a csp section with its node groups. A group without a successfully collected cluster gives k8sCluster null."
     Get-Kubernetes-Info:
       method: get
       resourcePath: /source_group/{sgId}/connection_info/{connId}/kubernetes
-      description: "Get the kubernetes information of the connection information."
+      description: "Get the kubernetes information of the connection information. A CSP-managed cluster also carries a csp section with the cluster's system ID, status, creation time and node groups."
     Get-Kubernetes-Info-Source-Group:
       method: get
       resourcePath: /source_group/{sgId}/kubernetes
-      description: "Get the kubernetes information for all connections in the source group."
+      description: "Get the kubernetes information for all connections in the source group. A CSP-managed cluster also carries a csp section with the cluster's system ID, status, creation time and node groups."
+    Get-Nlb-Info:
+      method: get
+      resourcePath: /source_group/{sgId}/connection_info/{connId}/nlb
+      description: "Get the network load balancer collected from the CSP for a csp nlb connection. The last NLB collected is returned even when a later import failed."
+    Get-Nlb-Info-Refined:
+      method: get
+      resourcePath: /source_group/{sgId}/connection_info/{connId}/nlb/refined
+      description: "Get the load balancers of the connection, the list infra/refined of the connection gives as nlbs: the NLBs found in HAProxy on a host, or the CSP NLB of a csp nlb connection with its backend servers given the private IPs of the group's CSP VMs. A host whose infra has not been collected is a bad request, as in infra/refined."
+    Get-Nlb-Info-Source-Group:
+      method: get
+      resourcePath: /source_group/{sgId}/nlb
+      description: "Get the network load balancers collected from the CSP for all csp nlb connections in the source group. Connections that are not nlb connections, have not been collected or whose last import failed are skipped."
+    Get-Nlb-Info-Source-Group-Refined:
+      method: get
+      resourcePath: /source_group/{sgId}/nlb/refined
+      description: "Get the load balancers of the source group, the list infra/refined of the group gives as nlbs: the NLBs found in HAProxy on the refined nodes, then the CSP NLBs of the csp nlb connections whose last import succeeded, their backend servers given the private IPs of the group's CSP VMs. A group without any gives an empty list."
     Get-Object-Storage-Info:
       method: get
       resourcePath: /source_group/{sgId}/connection_info/{connId}/objectstorage
@@ -3836,7 +3868,7 @@ serviceActions:
     Get-Rdbms-Info-Source-Group-Refined:
       method: get
       resourcePath: /source_group/{sgId}/rdbms/refined
-      description: "Get the refined database information for all connections in the source group, in the source model cm-beetle recommends from. Connections that cannot hold a database or have not been collected are skipped."
+      description: "Get the refined database information for all connections in the source group, in the source model cm-beetle recommends from. Connections that cannot hold a database, have not been collected, or whose last import failed are skipped."
     Get-Software-Info:
       method: get
       resourcePath: /source_group/{sgId}/connection_info/{connId}/software
@@ -3852,7 +3884,7 @@ serviceActions:
     Get-Software-Info-Source-Group-Refined:
       method: get
       resourcePath: /source_group/{sgId}/software/refined
-      description: "Get the refined software information for all connections in the source group."
+      description: "Get the refined software information of the connections in the source group that run the agent. A connection whose software has not been collected successfully is skipped."
     Get-Source-Group:
       method: get
       resourcePath: /source_group/{sgId}
@@ -3861,6 +3893,14 @@ serviceActions:
       method: get
       resourcePath: /readyz
       description: "Check Honeybee is ready"
+    Import-All-Source-Group:
+      method: post
+      resourcePath: /source_group/{sgId}/import/all
+      description: "Collect every connection of an onprem or csp source group the way its type is collected. A csp resource other than a VM is collected from the CSP and reported as kubernetes, bucket, rdbms or nlb. A VM is collected as infra (on a csp group the CSP side, and through the agent when it has an ip_address), and a host the agent can reach also as software, kubernetes and helm, as the group imports of those kinds pick them. An on-prem k8s connection has nothing to collect and is left out. A failing collection is listed with status failed and does not stop the others; the request fails only when no collection of any connection succeeded. fs, db and minio groups are refused with the import to use instead (import/fs, import/db, import/objectstorage)."
+    Import-Bucket-Source-Group:
+      method: post
+      resourcePath: /source_group/{sgId}/import/bucket
+      description: "Collect from the CSP the object_storage connections of a csp source group. The other connections are left alone. A failing connection is listed with status failed and does not stop the others; the request fails only when every connection fails. A source group that is not csp is refused."
     Import-Data:
       method: post
       resourcePath: /source_group/{sgId}/connection_info/{connId}/import/data
@@ -3868,7 +3908,7 @@ serviceActions:
     Import-Data-Source-Group:
       method: post
       resourcePath: /source_group/{sgId}/import/data
-      description: "Import data information for all connections in the source group."
+      description: "Import data information for the connections in the source group through the agent. Connections without an agent (on-prem k8s, CSP resources other than VMs, CSP VMs without an IP address) are skipped. A connection that fails is listed with status failed and does not stop the others; the request fails only when every connection fails."
     Import-Db:
       method: post
       resourcePath: /source_group/{sgId}/connection_info/{connId}/import/db
@@ -3892,7 +3932,7 @@ serviceActions:
     Import-Helm-Source-Group:
       method: post
       resourcePath: /source_group/{sgId}/import/helm
-      description: "Import helm information for all connections in the source group."
+      description: "Import helm information for the connections in the source group through the agent. Connections without an agent (on-prem k8s, CSP resources other than VMs, CSP VMs without an IP address) are skipped. A connection that fails is listed with status failed and does not stop the others; the request fails only when every connection fails."
     Import-Infra:
       method: post
       resourcePath: /source_group/{sgId}/connection_info/{connId}/import/infra
@@ -3900,7 +3940,11 @@ serviceActions:
     Import-Infra-Source-Group:
       method: post
       resourcePath: /source_group/{sgId}/import/infra
-      description: "Import infra information for all connections in the source group."
+      description: "Import infra information for all connections in the source group. A connection that fails is listed with status failed and does not stop the others; the request fails only when every connection fails."
+    Import-K8s-Source-Group:
+      method: post
+      resourcePath: /source_group/{sgId}/import/k8s
+      description: "Collect from the CSP the k8s connections (managed clusters) of a csp source group. The other connections are left alone; a cluster on VMs is collected through the agent by import/kubernetes. A failing connection is listed with status failed and does not stop the others; the request fails only when every connection fails. A source group that is not csp is refused."
     Import-Kubernetes:
       method: post
       resourcePath: /source_group/{sgId}/connection_info/{connId}/import/kubernetes
@@ -3908,7 +3952,11 @@ serviceActions:
     Import-Kubernetes-Source-Group:
       method: post
       resourcePath: /source_group/{sgId}/import/kubernetes
-      description: "Import kubernetes information for all connections in the source group."
+      description: "Import kubernetes information for the connections in the source group through the agent. Connections without an agent (on-prem k8s, CSP resources other than VMs, CSP VMs without an IP address) are skipped. A connection that fails is listed with status failed and does not stop the others; the request fails only when every connection fails."
+    Import-Nlb-Source-Group:
+      method: post
+      resourcePath: /source_group/{sgId}/import/nlb
+      description: "Collect from the CSP the nlb connections of a csp source group. The other connections are left alone. A failing connection is listed with status failed and does not stop the others; the request fails only when every connection fails. A source group that is not csp is refused."
     Import-Object-Storage:
       method: post
       resourcePath: /source_group/{sgId}/connection_info/{connId}/import/objectstorage
@@ -3917,6 +3965,10 @@ serviceActions:
       method: post
       resourcePath: /source_group/{sgId}/import/objectstorage
       description: "Import object storage information for all connections in the source group. Each connection is inspected at its own os_scan_bucket and os_scan_prefix."
+    Import-Rdbms-Source-Group:
+      method: post
+      resourcePath: /source_group/{sgId}/import/rdbms
+      description: "Collect from the CSP the rdbms connections (managed databases) of a csp source group. The other connections are left alone. A failing connection is listed with status failed and does not stop the others; the request fails only when every connection fails. A source group that is not csp is refused."
     Import-Software:
       method: post
       resourcePath: /source_group/{sgId}/connection_info/{connId}/import/software
@@ -3924,7 +3976,7 @@ serviceActions:
     Import-Software-Source-Group:
       method: post
       resourcePath: /source_group/{sgId}/import/software
-      description: "Import software information for all connections in the source group."
+      description: "Import software information for the connections in the source group through the agent. Connections without an agent (on-prem k8s, CSP resources other than VMs, CSP VMs without an IP address) are skipped. A connection that fails is listed with status failed and does not stop the others; the request fails only when every connection fails."
     List-Connection-Info:
       method: get
       resourcePath: /source_group/{sgId}/connection_info
@@ -3932,7 +3984,11 @@ serviceActions:
     List-Csp:
       method: get
       resourcePath: /csp
-      description: "Return the list of CSPs supported by the linked cb-spider drivers."
+      description: "Return the list of CSPs supported by the linked cb-spider drivers, and for each the resource_type values its connections can be collected as."
+    List-Csp-Regions:
+      method: post
+      resourcePath: /csp/{name}/region
+      description: "Return the CSP's available regions and zones, queried live with the credential in the body, so the region of a csp source group can be chosen before the group exists. The credential takes the keys GET /csp/{name} lists (credential_keys, and optional_credential_keys as a csp source group does) and is neither stored nor logged. The region queried is the CSP's default one for listing."
     List-Source-Group:
       method: get
       resourcePath: /source_group
@@ -3941,6 +3997,10 @@ serviceActions:
       method: get
       resourcePath: /source_group/{sgId}/region
       description: "Return the CSP's available regions and zones, queried live via the source group's stored credential. CSP-type source groups only."
+    List-Source-Group-Types:
+      method: get
+      resourcePath: /source_group/types
+      description: "Return each source group type with the connection types it holds and the fields each takes, so a client can build the registration forms. The credential keys of a csp group come from GET /csp/{name}."
     Refresh-Connection-Info-Status:
       method: put
       resourcePath: /source_group/{sgId}/connection_info/{connId}/refresh
