@@ -58,7 +58,7 @@
 # =============================================================================
 services:
   cb-spider: #service name
-    version: 0.13.20(latest)
+    version: 0.14.0(latest)
     baseurl: http://cb-spider:1024/spider # baseurl is Scheme + Host + Base Path
     auth: # cb-spider 0.12.17+ requires REST auth; credentials are read from the env (see header).
       type: basic
@@ -69,7 +69,7 @@ services:
       release: https://raw.githubusercontent.com/cloud-barista/cb-spider/{release}/api/swagger.json
 
   cb-tumblebug:
-    version: 0.13.8(latest)
+    version: 0.14.0(latest)
     baseurl: http://cb-tumblebug:1323/tumblebug
     auth:
       type: basic
@@ -87,7 +87,7 @@ services:
       latest: https://raw.githubusercontent.com/cloud-barista/cm-ant/main/api/swagger.json
       release: https://raw.githubusercontent.com/cloud-barista/cm-ant/{release}/api/swagger.json
   cm-beetle:
-    version: edge-c400528(latest)
+    version: 0.6.6(latest)
     baseurl: http://cm-beetle:8056/beetle
     auth:
       type: basic
@@ -158,7 +158,7 @@ services:
       release: https://raw.githubusercontent.com/cloud-barista/cm-grasshopper/{release}/pkg/api/rest/docs/swagger.json
 
   cm-damselfly:
-    version: 0.6.5(latest)
+    version: 0.6.6(latest)
     baseurl: http://cm-damselfly:8088/damselfly
     auth: # cm-damselfly checks these only when DAMSELFLY_API_AUTH_ENABLED=true; otherwise they are ignored.
       type: basic
@@ -574,14 +574,6 @@ serviceActions:
       method: put
       resourcePath: /cluster/{Name}/storagedriver
       description: "Enable a CSP-managed CSI storage driver of a Cluster through the CSP API. Only Kind \"Block\" is supported. <br> Enabling installs the driver components and wires the permissions the driver needs (e.g., AWS IAM Role and Pod Identity). <br> Idempotent: an already enabled or BuiltIn driver is returned as-is. <br> Some CSPs apply the change asynchronously and return Status \"Updating\"; check the result with the GET API."
-    Fetch-Resource-Usage:
-      method: get
-      resourcePath: /sysstats/usage
-      description: "Retrieve resource usage information such as CPU, memory, disk I/O, and network I/O.\nUse query parameter 'mode=text' to get the output in text format instead of JSON."
-    Fetch-System-Info:
-      method: get
-      resourcePath: /sysstats/system
-      description: "Retrieve system information such as hostname, platform, CPU, memory, and disk.\nUse query parameter 'mode=text' to get the output in text format instead of JSON."
     Get-Cloudos-Metainfo:
       method: get
       resourcePath: /cloudos/metainfo/{CloudOSName}
@@ -1178,6 +1170,30 @@ serviceActions:
       method: post
       resourcePath: /vm
       description: "Start a new Virtual Machine (VM) with specified configurations. 🕷️ [[User Guide](https://github.com/cloud-barista/cb-spider/wiki/features-and-usages#2-%EB%A9%80%ED%8B%B0%ED%81%B4%EB%9D%BC%EC%9A%B0%EB%93%9C-vm-%EC%9D%B8%ED%94%84%EB%9D%BC-%EC%9E%90%EC%9B%90-%EC%A0%9C%EC%96%B4multi-cloud-vm-infra-resource-control)], [[Snapshot-MyImage,Disk Guide](https://github.com/cloud-barista/cb-spider/wiki/VM-Snapshot,-MyImage-and-Disk-Overview)]"
+    Stateless-Add-Subnet:
+      method: post
+      resourcePath: /stateless/vpc/{SystemId}/subnet
+      description: "Add a Subnet to an existing VPC, identified by its CSP-native SystemId."
+    Stateless-Create-Vpc:
+      method: post
+      resourcePath: /stateless/vpc
+      description: "Create a VPC directly through the CSP driver using inline Provider/Credential/Region info. No ConnectionName is used and no IID mapping is stored; the returned IId.SystemId is the raw CSP-native resource ID."
+    Stateless-Delete-Vpc:
+      method: delete
+      resourcePath: /stateless/vpc/{SystemId}
+      description: "Delete a VPC by its CSP-native SystemId. No MetaDB cleanup is needed since nothing was stored."
+    Stateless-Get-Vpc:
+      method: get
+      resourcePath: /stateless/vpc/{SystemId}
+      description: "Get a single VPC by its CSP-native SystemId, read directly from the CSP (no MetaDB involved)."
+    Stateless-List-Vpc:
+      method: get
+      resourcePath: /stateless/vpc
+      description: "List every VPC visible to the given Provider/Credential/Region, read directly from the CSP (no MetaDB involved)."
+    Stateless-Remove-Subnet:
+      method: delete
+      resourcePath: /stateless/vpc/{SystemId}/subnet/{SubnetSystemId}
+      description: "Remove a Subnet from a VPC, both identified by their CSP-native SystemId."
     Terminate-Csp-Vm:
       method: delete
       resourcePath: /cspvm/{Id}
@@ -1439,6 +1455,10 @@ serviceActions:
       method: delete
       resourcePath: /ns/{nsId}/template/infra
       description: "Delete all Infra Dynamic Templates in a namespace."
+    DeleteAllInitScriptTemplate:
+      method: delete
+      resourcePath: /ns/{nsId}/template/initScript
+      description: ""
     DeleteAllK8sCluster:
       method: delete
       resourcePath: /ns/{nsId}/k8sCluster
@@ -1479,6 +1499,10 @@ serviceActions:
       method: delete
       resourcePath: /ns/{nsId}/template/infra/{templateId}
       description: "Delete a specific Infra Dynamic Template."
+    DeleteInitScriptTemplate:
+      method: delete
+      resourcePath: /ns/{nsId}/template/initScript/{templateId}
+      description: ""
     DeleteK8sCluster:
       method: delete
       resourcePath: /ns/{nsId}/k8sCluster/{k8sClusterId}
@@ -1511,6 +1535,14 @@ serviceActions:
       method: delete
       resourcePath: /ns/{nsId}/infra/{infraId}/node/{nodeId}/sshHostKey
       description: "Reset the stored SSH host key for a specific node. This should be used when the node's host key has legitimately changed (e.g., after node recreation) and you trust the new key. The next SSH connection will store the new host key (TOFU)."
+    DeleteNotifier:
+      method: delete
+      resourcePath: /notifier
+      description: "Stops subscribing and removes the registration. With deleteInfra=true, the Infra created by POST /notifier/ntfy is terminated and deleted as well."
+    DeleteNotifierReader:
+      method: delete
+      resourcePath: /notifier/reader/{name}
+      description: ""
     DeleteObject:
       method: delete
       resourcePath: /object
@@ -1523,6 +1555,14 @@ serviceActions:
       method: delete
       resourcePath: /objects
       description: "Delete child objects along with the given object"
+    DeleteObservability:
+      method: delete
+      resourcePath: /observability
+      description: "Removes the registration; Nodes created afterwards get no TB_OTEL_* variables. With\ndeleteInfra=true a stack provisioned by CB-Tumblebug is terminated together with its resources."
+    DeleteObservabilityReader:
+      method: delete
+      resourcePath: /observability/reader/{name}
+      description: ""
     DeleteProvisioningLog:
       method: delete
       resourcePath: /provisioning/log/{specId}
@@ -1534,7 +1574,7 @@ serviceActions:
     DeleteRDBMSDatabase:
       method: delete
       resourcePath: /ns/{nsId}/resources/rdbms/{rdbmsId}/database/{dbName}
-      description: "Deletes a logical database inside an RDBMS instance via CB-Spider.\nX-Admin-User-Name and X-Admin-User-Password headers are required."
+      description: "Deletes a logical database inside an RDBMS instance via CB-Spider.\nX-Admin-User-Name and X-Admin-User-Password headers are required.\nPrivate RDBMS (publicAccess=false): returns 422 immediately for SQL-only CSPs (AWS, IBM) that have no native logical database API.\nSee https://github.com/cloud-barista/cb-tumblebug/blob/main/docs/feature_guide/rdbms-management.md#direct-sql-and-tls-alternatives-for-private-rdbms for direct SQL alternatives."
     DeleteRequest:
       method: delete
       resourcePath: /request/{reqId}
@@ -1643,6 +1683,10 @@ serviceActions:
       method: get
       resourcePath: /ns/{nsId}/policy/infra
       description: "List all Infra policies"
+    GetAllInitScriptTemplate:
+      method: get
+      resourcePath: /ns/{nsId}/template/initScript
+      description: "List init script Templates in a namespace. Shared templates live in the `system` namespace."
     GetAllK8sCluster:
       method: get
       resourcePath: /ns/{nsId}/k8sCluster
@@ -1855,6 +1899,10 @@ serviceActions:
       method: get
       resourcePath: /ns/{nsId}/infra/{infraId}/handlingCount
       description: "Get the number of commands currently in 'Handling' status for all nodes in an Infra. Returns per-node counts and total count."
+    GetInfraInitScript:
+      method: get
+      resourcePath: /ns/{nsId}/infra/{infraId}/initScript
+      description: "Counts and per-Node results of the first-boot init script, as reported by the Nodes through the\nnotifier. A Node is `pending` until its first report, `initializing` while steps run (the current step is in\n`step`), then `ok` or `fail`; `notApplicable` when its NodeGroup has no init script or reporting is off.\nResults are read from a per-Node record, so the call stays cheap for large Infras."
     GetInfraNode:
       method: get
       resourcePath: /ns/{nsId}/infra/{infraId}/node/{nodeId}
@@ -1867,6 +1915,10 @@ serviceActions:
       method: get
       resourcePath: /ns/{nsId}/infra/{infraId}/configCopy
       description: "Reconstruct an Infra dynamic creation request body from an existing Infra's information.\nReturns a dynamic request format where networking resources (vNet, subnet, SG, sshKey)\nare auto-created, making it easy to clone or recreate a similar Infra configuration.\n\n**Template Option:**\nWhen the `template` query parameter is provided, the extracted configuration is\nsaved as a reusable Infra Dynamic Template with the given name."
+    GetInitScriptTemplate:
+      method: get
+      resourcePath: /ns/{nsId}/template/initScript/{templateId}
+      description: "Get an init script Template from the given namespace (no fallback to `system`)."
     GetK8sCluster:
       method: get
       resourcePath: /ns/{nsId}/k8sCluster/{k8sClusterId}
@@ -1923,10 +1975,6 @@ serviceActions:
       method: get
       resourcePath: /loadAssetsStatus
       description: "Returns the current phase, processed/total regions, and registered specs/images counts while LoadAssets or FetchPrice is running."
-    GetMonitorData:
-      method: get
-      resourcePath: /ns/{nsId}/monitoring/infra/{infraId}/metric/{metric}
-      description: "Get monitoring data of specified Infra for specified monitoring metric (cpu, memory, disk, network)"
     GetNLB:
       method: get
       resourcePath: /ns/{nsId}/infra/{infraId}/nlb/{nlbId}
@@ -1955,6 +2003,18 @@ serviceActions:
       method: get
       resourcePath: /ns/{nsId}/infra/{infraId}/node/{nodeId}/sshHostKey
       description: "Get the stored SSH host key information for a specific node. This is used for TOFU (Trust On First Use) verification."
+    GetNotifier:
+      method: get
+      resourcePath: /notifier
+      description: "Returns the notification channel (ntfy) CB-Tumblebug subscribes to. Tokens are masked unless showSecrets=true, which returns the full read/write tokens so others can subscribe (read token) or publish (write token)."
+    GetNotifierMessages:
+      method: get
+      resourcePath: /notifier/messages
+      description: ""
+    GetNotifierReaders:
+      method: get
+      resourcePath: /notifier/reader
+      description: ""
     GetNs:
       method: get
       resourcePath: /ns/{nsId}
@@ -1987,6 +2047,14 @@ serviceActions:
       method: get
       resourcePath: /objects
       description: "List all objects for a given key"
+    GetObservability:
+      method: get
+      resourcePath: /observability
+      description: "The OpenTelemetry endpoint (and Grafana) that Nodes send metrics and logs to. Secrets are masked\nunless showSecrets=true. CB-Tumblebug exports it to init scripts as TB_OTEL_ENDPOINT/TB_OTEL_TOKEN/TB_OTEL_CA_B64;\nthe `initscript-otel-agent` template installs the agent on a Node."
+    GetObservabilityReaders:
+      method: get
+      resourcePath: /observability/reader
+      description: ""
     GetOpenBaoStatus:
       method: get
       resourcePath: /credential/openbaoStatus
@@ -2014,11 +2082,11 @@ serviceActions:
     GetRDBMSDatabases:
       method: get
       resourcePath: /ns/{nsId}/resources/rdbms/{rdbmsId}/database
-      description: "Lists logical databases inside an RDBMS instance via CB-Spider.\nX-Admin-User-Name and X-Admin-User-Password headers are required."
+      description: "Lists logical databases inside an RDBMS instance via CB-Spider.\nX-Admin-User-Name and X-Admin-User-Password headers are required.\nPrivate RDBMS (publicAccess=false): returns 422 immediately for SQL-only CSPs (AWS, IBM) that have no native logical database API.\nSee https://github.com/cloud-barista/cb-tumblebug/blob/main/docs/feature_guide/rdbms-management.md#direct-sql-and-tls-alternatives-for-private-rdbms for direct SQL alternatives."
     GetRDBMSSecureTransport:
       method: get
       resourcePath: /ns/{nsId}/resources/rdbms/{rdbmsId}/secure-transport
-      description: "Retrieves live TLS enforcement status, active cipher, and server CA certificate via CB-Spider."
+      description: "Retrieves live TLS enforcement status, active cipher, and server CA certificate via CB-Spider.\nPrivate RDBMS (publicAccess=false): returns 422 immediately because TLS/SQL probing requires direct network reachability to the DB port.\nSee https://github.com/cloud-barista/cb-tumblebug/blob/main/docs/feature_guide/rdbms-management.md#direct-sql-and-tls-alternatives-for-private-rdbms for direct TLS/SQL alternatives."
     GetRDBMSSupport:
       method: get
       resourcePath: /rdbms/support
@@ -2170,7 +2238,7 @@ serviceActions:
     PostBuildAgnosticImage:
       method: post
       resourcePath: /ns/{nsId}/buildAgnosticImage
-      description: "Creates an Infra infrastructure, executes post-deployment commands, creates snapshots from each nodegroup, and optionally cleans up the Infra. This is a complete workflow for building CSP-agnostic custom images."
+      description: "Creates an Infra infrastructure, runs the post-deployment script, creates snapshots from each nodegroup, and optionally cleans up the Infra. This is a complete workflow for building CSP-agnostic custom images."
     PostCmdInfra:
       method: post
       resourcePath: /ns/{nsId}/cmd/infra/{infraId}
@@ -2210,7 +2278,7 @@ serviceActions:
     PostInfra:
       method: post
       resourcePath: /ns/{nsId}/infra
-      description: "Create Infra with detailed node specifications and resource configuration.\nThis endpoint creates a complete multi-cloud infrastructure by:\n1. **node Provisioning**: Creates nodes across multiple cloud providers using predefined specs and images\n2. **Resource Management**: Automatically handles VPC/VNet, security groups, SSH keys, and network configuration\n3. **Status Tracking**: Monitors node creation progress and handles failures based on policy settings\n4. **Post-Deployment**: Optionally installs monitoring agents and executes custom commands\n\n**Key Features:**\n- Multi-cloud node deployment with heterogeneous configurations\n- Automatic resource dependency management (VPC → Security Group → node)\n- Built-in failure handling with configurable policies (continue/rollback/refine)\n- Optional CB-Dragonfly monitoring agent installation\n- Post-deployment command execution support\n- Real-time status updates and progress tracking\n\n**node Lifecycle:**\n1. Creating → Running (successful deployment)\n2. Creating → Failed (deployment error, handled by failure policy)\n3. Running → Terminated (manual or policy-driven cleanup)\n\n**Failure Policies:**\n- `continue`: Keep successful nodes, mark failed ones for later refinement\n- `rollback`: Delete entire Infra if any node fails (all-or-nothing)\n- `refine`: Automatically clean up failed nodes, keep successful ones\n\n**Resource Requirements:**\n- Valid node specifications (must exist in system namespace)\n- Valid images (must be available in target CSP regions)\n- Sufficient CSP quotas and permissions\n- Network connectivity between components"
+      description: "Create Infra with detailed node specifications and resource configuration.\nThis endpoint creates a complete multi-cloud infrastructure by:\n1. **node Provisioning**: Creates nodes across multiple cloud providers using predefined specs and images\n2. **Resource Management**: Automatically handles VPC/VNet, security groups, SSH keys, and network configuration\n3. **Status Tracking**: Monitors node creation progress and handles failures based on policy settings\n4. **Post-Deployment**: Optionally installs monitoring agents and executes custom commands\n\n**Key Features:**\n- Multi-cloud node deployment with heterogeneous configurations\n- Automatic resource dependency management (VPC → Security Group → node)\n- Built-in failure handling with configurable policies (continue/rollback/refine)\n- Post-deployment script (postScript) support\n- Real-time status updates and progress tracking\n\n**node Lifecycle:**\n1. Creating → Running (successful deployment)\n2. Creating → Failed (deployment error, handled by failure policy)\n3. Running → Terminated (manual or policy-driven cleanup)\n\n**Failure Policies:**\n- `continue`: Keep successful nodes, mark failed ones for later refinement\n- `rollback`: Delete entire Infra if any node fails (all-or-nothing)\n- `refine`: Automatically clean up failed nodes, keep successful ones\n\n**Resource Requirements:**\n- Valid node specifications (must exist in system namespace)\n- Valid images (must be available in target CSP regions)\n- Sufficient CSP quotas and permissions\n- Network connectivity between components"
     PostInfraAudit:
       method: post
       resourcePath: /ns/{nsId}/infra/{infraId}/audit
@@ -2226,7 +2294,7 @@ serviceActions:
     PostInfraDynamic:
       method: post
       resourcePath: /ns/{nsId}/infraDynamic
-      description: "Create multi-cloud infrastructure dynamically using common specifications and images with automatic resource discovery and optimization.\nThis is the **recommended approach** for Infra creation, providing simplified configuration with powerful automation:\n\n**Dynamic Resource Creation:**\n1. **Automatic Resource Discovery**: Validates and selects optimal node specifications and images from common namespace\n2. **Intelligent Network Setup**: Creates VNets, subnets, security groups, and SSH keys automatically per provider\n3. **Cross-Cloud Orchestration**: Coordinates node provisioning across multiple cloud providers simultaneously\n4. **Dependency Management**: Handles resource creation order and inter-dependencies automatically\n5. **Failure Recovery**: Implements configurable failure policies for robust deployment\n\n**Key Advantages Over Static Infra:**\n- **Simplified Configuration**: Use common spec/image IDs instead of provider-specific resources\n- **Automatic Resource Management**: No need to pre-create VNets, security groups, or SSH keys\n- **Multi-Cloud Optimization**: Intelligent placement and configuration across providers\n- **Built-in Best Practices**: Security groups, network isolation, and access controls applied automatically\n- **Scalable Architecture**: Supports large-scale deployments with optimized resource utilization\n\n**Configuration Process:**\n1. **Resource Discovery**: Use `/recommendSpec` to find suitable node specifications\n2. **Image Selection**: Use system namespace to discover compatible images\n3. **Request Validation**: Use `/infraDynamicCheckRequest` to validate configuration before deployment\n4. **Optional Preview**: Use `/infraDynamicReview` to estimate costs and review configuration\n5. **Deployment**: Submit Infra dynamic request with failure policy and deployment options\n\n**Failure Policies (PolicyOnPartialFailure):**\n- **`continue`** (default): Create Infra with successful nodes, failed nodes remain for manual refinement\n- **`rollback`**: Delete entire Infra if any node fails (all-or-nothing deployment)\n- **`refine`**: Automatically clean up failed nodes, keep successful ones (recommended for large deployments)\n\n**Deployment Options:**\n- **`hold`**: Create Infra object but hold node provisioning for manual approval\n- **Normal**: Proceed with immediate node provisioning after resource creation\n\n**Multi-Cloud Example Configuration:**\n```json\n{\n\"name\": \"multi-cloud-web-tier\",\n\"description\": \"Web application across AWS, Azure, and GCP\",\n\"policyOnPartialFailure\": \"refine\",\n\"nodeGroups\": [\n{\n\"name\": \"aws-web-servers\",\n\"nodeGroupSize\": \"3\",\n\"specId\": \"aws+us-east-1+t3.medium\",\n\"imageId\": \"ami-0abcdef1234567890\",\n\"rootDiskSize\": \"100\",\n\"label\": {\"tier\": \"web\", \"provider\": \"aws\"}\n},\n{\n\"name\": \"azure-api-servers\",\n\"nodeGroupSize\": \"2\",\n\"specId\": \"azure+eastus+Standard_B2s\",\n\"imageId\": \"Canonical:0001-com-ubuntu-server-jammy:22_04-lts\",\n\"label\": {\"tier\": \"api\", \"provider\": \"azure\"}\n}\n]\n}\n```\n\n**Performance Considerations:**\n- node provisioning occurs in parallel across providers\n- Network resources are created concurrently where possible\n- Large deployments (>10 nodes) automatically use optimized batching\n- Built-in rate limiting prevents CSP API throttling\n\n**Monitoring and Post-Deployment:**\n- Optional CB-Dragonfly monitoring agent installation\n- Custom post-deployment command execution\n- Real-time status tracking and progress updates\n- Automatic resource labeling and metadata management"
+      description: "Create multi-cloud infrastructure dynamically using common specifications and images with automatic resource discovery and optimization.\nThis is the **recommended approach** for Infra creation, providing simplified configuration with powerful automation:\n\n**Dynamic Resource Creation:**\n1. **Automatic Resource Discovery**: Validates and selects optimal node specifications and images from common namespace\n2. **Intelligent Network Setup**: Creates VNets, subnets, security groups, and SSH keys automatically per provider\n3. **Cross-Cloud Orchestration**: Coordinates node provisioning across multiple cloud providers simultaneously\n4. **Dependency Management**: Handles resource creation order and inter-dependencies automatically\n5. **Failure Recovery**: Implements configurable failure policies for robust deployment\n\n**Key Advantages Over Static Infra:**\n- **Simplified Configuration**: Use common spec/image IDs instead of provider-specific resources\n- **Automatic Resource Management**: No need to pre-create VNets, security groups, or SSH keys\n- **Multi-Cloud Optimization**: Intelligent placement and configuration across providers\n- **Built-in Best Practices**: Security groups, network isolation, and access controls applied automatically\n- **Scalable Architecture**: Supports large-scale deployments with optimized resource utilization\n\n**Configuration Process:**\n1. **Resource Discovery**: Use `/recommendSpec` to find suitable node specifications\n2. **Image Selection**: Use system namespace to discover compatible images\n3. **Request Validation**: Use `/infraDynamicCheckRequest` to validate configuration before deployment\n4. **Optional Preview**: Use `/infraDynamicReview` to estimate costs and review configuration\n5. **Deployment**: Submit Infra dynamic request with failure policy and deployment options\n\n**Failure Policies (PolicyOnPartialFailure):**\n- **`continue`** (default): Create Infra with successful nodes, failed nodes remain for manual refinement\n- **`rollback`**: Delete entire Infra if any node fails (all-or-nothing deployment)\n- **`refine`**: Automatically clean up failed nodes, keep successful ones (recommended for large deployments)\n\n**Deployment Options:**\n- **`hold`**: Create Infra object but hold node provisioning for manual approval\n- **Normal**: Proceed with immediate node provisioning after resource creation\n\n**Multi-Cloud Example Configuration:**\n```json\n{\n\"name\": \"multi-cloud-web-tier\",\n\"description\": \"Web application across AWS, Azure, and GCP\",\n\"policyOnPartialFailure\": \"refine\",\n\"nodeGroups\": [\n{\n\"name\": \"aws-web-servers\",\n\"nodeGroupSize\": \"3\",\n\"specId\": \"aws+us-east-1+t3.medium\",\n\"imageId\": \"ami-0abcdef1234567890\",\n\"rootDiskSize\": \"100\",\n\"label\": {\"tier\": \"web\", \"provider\": \"aws\"}\n},\n{\n\"name\": \"azure-api-servers\",\n\"nodeGroupSize\": \"2\",\n\"specId\": \"azure+eastus+Standard_B2s\",\n\"imageId\": \"Canonical:0001-com-ubuntu-server-jammy:22_04-lts\",\n\"label\": {\"tier\": \"api\", \"provider\": \"azure\"}\n}\n]\n}\n```\n\n**Performance Considerations:**\n- node provisioning occurs in parallel across providers\n- Network resources are created concurrently where possible\n- Large deployments (>10 nodes) automatically use optimized batching\n- Built-in rate limiting prevents CSP API throttling\n\n**Monitoring and Post-Deployment:**\n- Custom post-deployment script (postScript) execution\n- Real-time status tracking and progress updates\n- Automatic resource labeling and metadata management"
     PostInfraDynamicCheckRequest:
       method: post
       resourcePath: /infraDynamicCheckRequest
@@ -2246,7 +2314,7 @@ serviceActions:
     PostInfraDynamicTemplate:
       method: post
       resourcePath: /ns/{nsId}/template/infra
-      description: "Create a reusable Infra Dynamic Template. Templates store Infra dynamic creation\nrequest configurations that can be applied later to create Infras with consistent settings.\n\n**Template Contents:**\n- node specifications (specId, imageId) for each nodegroup\n- NodeGroup sizing and naming\n- Network and disk configuration\n- Post-deployment commands\n- Monitoring agent options\n\nTemplates can be created manually or extracted from existing Infras."
+      description: "Create a reusable Infra Dynamic Template. Templates store Infra dynamic creation\nrequest configurations that can be applied later to create Infras with consistent settings.\n\n**Template Contents:**\n- node specifications (specId, imageId) for each nodegroup\n- NodeGroup sizing and naming\n- Network and disk configuration\n- Post-deployment script (postScript)\n- Monitoring agent options\n\nTemplates can be created manually or extracted from existing Infras."
     PostInfraNode:
       method: post
       resourcePath: /ns/{nsId}/infra/{infraId}/node
@@ -2271,14 +2339,14 @@ serviceActions:
       method: post
       resourcePath: /ns/{nsId}/infra/{infraId}/snapshot
       description: "Create snapshots for the first running node in each nodegroup of an Infra in parallel"
+    PostInitScriptTemplate:
+      method: post
+      resourcePath: /ns/{nsId}/template/initScript
+      description: "Create a reusable init script Template. An init script runs on a Node at first boot\n(delivered as cloud-init user data) and is referenced from `initScript.templateId` or\n`initScript.scripts[].templateId` of an Infra or NodeGroup request.\n\nTemplates in the `system` namespace are shared with every namespace; a template with the\nsame id in the request namespace takes precedence. The script is run by bash with the\n`TB_*` node identity variables and the template/request `env` exported."
     PostInstallBenchmarkAgentToInfra:
       method: post
       resourcePath: /ns/{nsId}/installBenchmarkAgent/infra/{infraId}
       description: "Install the benchmark agent to specified Infra"
-    PostInstallMonitorAgentToInfra:
-      method: post
-      resourcePath: /ns/{nsId}/monitoring/install/infra/{infraId}
-      description: "Install monitoring agent (CB-Dragonfly agent) to Infra"
     PostK8sCluster:
       method: post
       resourcePath: /ns/{nsId}/k8sCluster
@@ -2327,10 +2395,42 @@ serviceActions:
       method: post
       resourcePath: /ns/{nsId}/infra/{infraId}/node/{nodeId}/dataDisk
       description: "Provisioning (Create and attach) dataDisk. The dataDisk is created in the Node's zone unless a zone is given."
+    PostNodeTerminalTicket:
+      method: post
+      resourcePath: /ns/{nsId}/infra/{infraId}/node/{nodeId}/terminal/ticket
+      description: "Validates access to the target Infra Node and returns a short-lived, single-use ticket for upgrading GET /ws/terminal to an interactive PTY shell."
+    PostNotifierNtfy:
+      method: post
+      resourcePath: /notifier/ntfy
+      description: "Creates an Infra from the template (default infra-ntfy) in the given namespace (default: system), installs ntfy with TLS and token auth, registers it as the notifier, and runs a round-trip test. Takes a few minutes."
+    PostNotifierPublish:
+      method: post
+      resourcePath: /notifier/publish
+      description: "Publishes a JSON message with the given kind. data must be a JSON object; its fields are merged into the message."
+    PostNotifierReader:
+      method: post
+      resourcePath: /notifier/reader
+      description: "Creates an ntfy user that can only read the notifier topic, for subscribing from the ntfy app, web UI or curl. The password is generated when omitted and returned only in this response."
+    PostNotifierTest:
+      method: post
+      resourcePath: /notifier/test
+      description: ""
     PostNs:
       method: post
       resourcePath: /ns
       description: "Create namespace"
+    PostObservabilityReader:
+      method: post
+      resourcePath: /observability/reader
+      description: "Creates a read-only Grafana user on the stack. The password is returned once."
+    PostObservabilityStack:
+      method: post
+      resourcePath: /observability/stack
+      description: "Creates one VM from an Infra template (default `infra-obs`, namespace `system`), installs nginx (TLS),\nan OTel Collector gateway, Prometheus, Loki and Grafana with CB-Tumblebug dashboards, mirrors the agent\npackages, and registers the stack. With `domainName` (a Route53 hosted zone) the stack gets a DNS name\nand a Let's Encrypt certificate; otherwise a self-signed certificate is used and its CA is stored.\nTakes several minutes."
+    PostObservabilityTest:
+      method: post
+      resourcePath: /observability/test
+      description: "Sends one metric and one log line to the OTLP endpoint and, when Grafana admin access is configured,\nwaits until both can be queried back through Grafana."
     PostRDBMS:
       method: post
       resourcePath: /ns/{nsId}/resources/rdbms
@@ -2338,11 +2438,11 @@ serviceActions:
     PostRDBMSDatabase:
       method: post
       resourcePath: /ns/{nsId}/resources/rdbms/{rdbmsId}/database
-      description: "Creates a logical database inside an Available RDBMS instance via CB-Spider.\nOptional charset and collation fields are supported for MySQL and MariaDB instances (Alibaba MariaDB supports charset only).\nX-Admin-User-Name and X-Admin-User-Password headers are required (not persisted by Tumblebug).\nNote: Setting charset/collation on NCP requires CB-Spider network access to the private VPC endpoint (sys.ncp_create_db), and on NHN Cloud requires 'Direct Control' enabled in the NHN Console."
+      description: "Creates a logical database inside an Available RDBMS instance via CB-Spider.\nOptional charset and collation fields are supported for MySQL and MariaDB instances (Alibaba MariaDB supports charset only).\nX-Admin-User-Name and X-Admin-User-Password headers are required (not persisted by Tumblebug).\nPrivate RDBMS (publicAccess=false): returns 422 immediately when the requested CSP/options require direct SQL (AWS, IBM, Azure charset-only, Tencent collation, NCP/NHN charset or collation).\nSee https://github.com/cloud-barista/cb-tumblebug/blob/main/docs/feature_guide/rdbms-management.md#direct-sql-and-tls-alternatives-for-private-rdbms for direct SQL alternatives.\nNote: Setting charset/collation on NCP requires CB-Spider network access to the private VPC endpoint (sys.ncp_create_db), and on NHN Cloud requires 'Direct Control' enabled in the NHN Console."
     PostRegisterCSPNativeNode:
       method: post
       resourcePath: /ns/{nsId}/registerCspNode
-      description: "Import and register pre-existing virtual machines from cloud service providers into CB-Tumblebug management.\nThis endpoint allows you to bring existing CSP resources under CB-Tumblebug control without recreating them:\n\n**Registration Process:**\n1. **Discovery**: Validates that the specified node exists in the target CSP\n2. **Metadata Import**: Retrieves node configuration, network settings, and current status\n3. **Resource Mapping**: Creates CB-Tumblebug resource objects that reference the existing CSP resources\n4. **Status Synchronization**: Aligns CB-Tumblebug status with actual CSP node state\n5. **Management Integration**: Enables CB-Tumblebug operations on the registered nodes\n\n**Supported node States:**\n- Running nodes (most common use case)\n- Stopped nodes (will be registered with current state)\n- nodes with attached storage and network interfaces\n\n**Resource Compatibility:**\n- node must exist in a supported CSP (AWS, Azure, GCP, etc.)\n- Network resources (VPC, subnets, security groups) will be discovered and mapped\n- Storage volumes and attached disks will be registered automatically\n- SSH keys and security configurations will be imported\n\n**Post-Registration Capabilities:**\n- Standard CB-Tumblebug node lifecycle operations (start, stop, terminate)\n- Monitoring agent installation (if CB-Dragonfly is configured)\n- Command execution and automation\n- Integration with other CB-Tumblebug Infras\n\n**Important Notes:**\n- Registration does not modify the existing node configuration\n- Original CSP billing and resource management still applies\n- CB-Tumblebug provides additional management layer and automation\n- Ensure proper CSP credentials and permissions are configured"
+      description: "Import and register pre-existing virtual machines from cloud service providers into CB-Tumblebug management.\nThis endpoint allows you to bring existing CSP resources under CB-Tumblebug control without recreating them:\n\n**Registration Process:**\n1. **Discovery**: Validates that the specified node exists in the target CSP\n2. **Metadata Import**: Retrieves node configuration, network settings, and current status\n3. **Resource Mapping**: Creates CB-Tumblebug resource objects that reference the existing CSP resources\n4. **Status Synchronization**: Aligns CB-Tumblebug status with actual CSP node state\n5. **Management Integration**: Enables CB-Tumblebug operations on the registered nodes\n\n**Supported node States:**\n- Running nodes (most common use case)\n- Stopped nodes (will be registered with current state)\n- nodes with attached storage and network interfaces\n\n**Resource Compatibility:**\n- node must exist in a supported CSP (AWS, Azure, GCP, etc.)\n- Network resources (VPC, subnets, security groups) will be discovered and mapped\n- Storage volumes and attached disks will be registered automatically\n- SSH keys and security configurations will be imported\n\n**Post-Registration Capabilities:**\n- Standard CB-Tumblebug node lifecycle operations (start, stop, terminate)\n- Command execution and automation\n- Integration with other CB-Tumblebug Infras\n\n**Important Notes:**\n- Registration does not modify the existing node configuration\n- Original CSP billing and resource management still applies\n- CB-Tumblebug provides additional management layer and automation\n- Ensure proper CSP credentials and permissions are configured"
     PostRegisterSubnet:
       method: post
       resourcePath: /ns/{nsId}/registerCspResource/vNet/{vNetId}/subnet
@@ -2459,6 +2559,10 @@ serviceActions:
       method: put
       resourcePath: /ns/{nsId}/template/infra/{templateId}
       description: "Update an existing Infra Dynamic Template."
+    PutInitScriptTemplate:
+      method: put
+      resourcePath: /ns/{nsId}/template/initScript/{templateId}
+      description: "Replace the script, env and description of an init script Template. Infras created earlier keep\nthe content they were created with; the change applies to Infras and NodeGroups created afterwards."
     PutK8sClusterDynamicTemplate:
       method: put
       resourcePath: /ns/{nsId}/template/k8sCluster/{templateId}
@@ -2475,18 +2579,22 @@ serviceActions:
       method: put
       resourcePath: /ns/{nsId}/k8sStorage
       description: "Run PUT .../k8sCluster/{k8sClusterId}/storage on the listed K8sClusters (empty: all in the namespace) in parallel.\nReturns 202 with a per-cluster result."
-    PutMonitorAgentStatusInstalled:
-      method: put
-      resourcePath: /ns/{nsId}/monitoring/status/infra/{infraId}/node/{nodeId}
-      description: "Set monitoring agent (CB-Dragonfly agent) installation status installed (for Windows node only)"
     PutNodeDataDisk:
       method: put
       resourcePath: /ns/{nsId}/infra/{infraId}/node/{nodeId}/dataDisk
       description: "Attach/Detach available dataDisk"
+    PutNotifier:
+      method: put
+      resourcePath: /notifier
+      description: "Registers an ntfy server and topic. CB-Tumblebug starts subscribing immediately; the write token is handed to VMs that report back."
     PutNs:
       method: put
       resourcePath: /ns/{nsId}
       description: "Update namespace"
+    PutObservability:
+      method: put
+      resourcePath: /observability
+      description: "Register an OTLP/HTTP endpoint (for example an existing OTel Collector or a hosted service) and,\noptionally, the Grafana in front of it. grafanaAdminUser/Password enable the round-trip test and\nviewer accounts. `otlpEndpoint` and `grafanaUrl` must be `http(s)://host[:port][/path]` without\ncredentials, query or fragment; link-local and metadata addresses are rejected."
     PutScheduleRegisterCspResources:
       method: put
       resourcePath: /registerCspResources/schedule/{jobId}
@@ -2618,7 +2726,23 @@ serviceActions:
     RestDeleteObjectStorage:
       method: delete
       resourcePath: /ns/{nsId}/resources/objectStorage/{osId}
-      description: "Delete an object storage (bucket).\n\n**Query option (mutually exclusive — specify at most one):**\n\n| option | Description |\n|--------|-------------|\n| (none) | Standard delete. Fails if the bucket is not empty. |\n| `empty` | Empty the bucket first, then delete. |\n| `force` | Force delete bucket with all contents (passed to Spider as `force=true`). Behaviour varies by CSP; use when standard delete is not sufficient. |\n\nTo clean up metadata for a bucket whose CSP resource is already gone, use `PUT .../reconcile` followed by `POST .../prune` instead of a delete option."
+      description: "Delete an object storage (bucket).\n\n**Query option (mutually exclusive - specify at most one):**\n\n| option | Description |\n|--------|-------------|\n| (none) | Standard delete. Fails if the bucket is not empty. |\n| `empty` | Empty all objects in the bucket while keeping the bucket itself. |\n| `force` | Empty all objects and force-delete the bucket and its metadata (passed to Spider as `force=true`). |\n\nTo clean up metadata for a bucket whose CSP resource is already gone, use `PUT .../reconcile` followed by `POST .../prune` instead of a delete option."
+    RestoreDataDisk:
+      method: put
+      resourcePath: /ns/{nsId}/resources/dataDisk/{dataDiskId}/restore
+      description: "Cancel a pending deletion and return the Data Disk to Available. Allowed only while the CSP resource still exists."
+    RestoreSecurityGroup:
+      method: put
+      resourcePath: /ns/{nsId}/resources/securityGroup/{securityGroupId}/restore
+      description: "Cancel a pending deletion and return the Security Group to Available. Allowed only while the CSP resource still exists."
+    RestoreSshKey:
+      method: put
+      resourcePath: /ns/{nsId}/resources/sshKey/{sshKeyId}/restore
+      description: "Cancel a pending deletion and return the SSH Key to Available. Allowed only while the CSP resource still exists."
+    RestoreVNet:
+      method: put
+      resourcePath: /ns/{nsId}/resources/vNet/{vNetId}/restore
+      description: "Cancel a pending deletion and return the VNet to Available. Allowed only while the CSP resource still exists."
     RetrieveRegionListFromCsp:
       method: get
       resourcePath: /regionFromCsp
@@ -3000,7 +3124,7 @@ serviceActions:
     GetRequest:
       method: get
       resourcePath: /request/{reqId}
-      description: "Retrieves the details of a specific API request tracked by Beetle, including correlated outbound CB-Tumblebug sub-requests.\n\n[Note]\n- Request tracking is managed independently by Beetle using `reqId` (from `X-Request-Id`).\n- Outbound state-changing and recommendation calls to CB-Tumblebug are recorded in `subRequests[]` with `subReqId` (`{reqId}-{seq}`) and `tumblebugSource` (`cm-beetle:{reqId}`).\n- Use `brief=true` during high-frequency polling to omit large request/response bodies while still receiving `status`, `subRequestSummary`, and `subRequests`.\n- Set `withTumblebug=true` to enrich each `subRequests[]` entry with live `upstreamStatus` and `upstreamProgress` from CB-Tumblebug `GET /request/{subReqId}`.\n\n[Status Values]\n- Handling: Request is currently being processed\n- Success: Request completed successfully\n- Error: Request failed with an error\n\n[Retry Information]\n- retry.retryable: Whether the failed request can be retried (present only for retriable errors)\n- retry.retryAfter: Suggested retry delay in seconds\n- retry.retryReason: Human-readable reason for retry requirement (e.g., \"Rate Limit Exceeded\")"
+      description: "Retrieves the details of a specific API request tracked by Beetle, including correlated outbound CB-Tumblebug sub-requests.\n\n[Note]\n- Request tracking is managed independently by Beetle using `reqId` (from `X-Request-Id`).\n- Outbound state-changing and recommendation calls to CB-Tumblebug are recorded in `subRequests[]` with `subReqId` (`{reqId}-{seq}`) and `tumblebugSource` (`cm-beetle:{reqId}`).\n- Use `brief=true` during high-frequency polling to omit large request/response bodies while still receiving `status`, `subRequestSummary`, and `subRequests`.\n- Set `withTumblebug=true` to enrich active (`Handling`) `subRequests[]` entries with live `upstreamStatus` and `upstreamProgress` from CB-Tumblebug `GET /request/{subReqId}`.\n\n[Status Values]\n- Handling: Request is currently being processed\n- Success: Request completed successfully\n- Error: Request failed with an error\n\n[Retry Information]\n- retry.retryable: Whether the failed request can be retried (present only for retriable errors)\n- retry.retryAfter: Suggested retry delay in seconds\n- retry.retryReason: Human-readable reason for retry requirement (e.g., \"Rate Limit Exceeded\")"
     GetSecurityPublicKey:
       method: get
       resourcePath: /migration/security/publicKey
@@ -3414,11 +3538,7 @@ serviceActions:
     ConvertSoftwareModel:
       method: get
       resourcePath: /software-model/{id}/convert
-      description: "Get a stored software migration user model converted to the struct of the cm-grasshopper/smdl tagged version given by 'modelVersion'. The stored model is not changed.\nOnly the conversion to the same or a newer version is allowed, and a model whose stored version is not a cm-grasshopper/smdl tag cannot be converted.\nThe response has the fields of 'GET /software-model/{id}', with 'softwareModelVersion' and 'sourceSoftwareModel' (or 'targetSoftwareModel') converted, and 'conversion' added: 'originVersion' (the stored version), 'currentVersion' (the version of the returned model), 'converted' (false if the stored version is already the requested version), 'droppedFields' (the paths of the fields removed because the requested version does not have them) and 'warnings' (what could not be converted as it was).\nIf a field of the stored model has a value which does not match the type of that field in the requested version (e.g. the free-form 'resources' of Kubernetes before v0.1.4), the model is not converted (400)."
-    CreateCloudModel:
-      method: post
-      resourcePath: /cloudmodel
-      description: "Create a new cloud user model with the given information."
+      description: "Get a stored software migration user model converted to the struct of the cm-grasshopper/smdl tagged version given by 'modelVersion'. The stored model is not changed.\nOnly the conversion to the same or a newer version is allowed, and a model whose stored version is not a cm-grasshopper/smdl tag cannot be converted.\nThe response has the fields of 'GET /software-model/{id}', with 'softwareModelVersion' and 'sourceSoftwareModel' (or 'targetSoftwareModel') converted, and 'conversion' added: 'originVersion' (the stored version), 'currentVersion' (the version of the returned model), 'converted' (false if the stored version is already the requested version), 'droppedFields' (the paths of the fields removed because the requested version does not have them) and 'warnings' (what could not be converted as it was).\nIf a field of the stored model has a value which does not match the type of that field in the requested version (e.g. the free-form 'resources' of Kubernetes before v0.1.4), the model is not converted (400).\nA planning model stored in the former target structure ('targetSoftwareModel', before v0.6.6) cannot be converted (400). Update it with 'sourceSoftwareModel' first."
     CreateInfraModel:
       method: post
       resourcePath: /infra-model
@@ -3427,10 +3547,6 @@ serviceActions:
       method: post
       resourcePath: /object-storage-model
       description: "Create a new object storage migration user model. Use 'modelStage' to select the stage (source, planning or target) of the model.\nProvide 'sourceObjectStorageModel' for a source or planning model (modelStage=source or planning), or 'targetObjectStorageModel' for a target model (modelStage=target).\nThe 'sourceObjectStorageModel' (or 'targetObjectStorageModel') is validated against the 'SourceObjectStorage' (or 'RecommendedObjectStorage') struct of the cm-beetle/imdl tagged version given by 'objectStorageModelVersion', and is stored in that struct's form.\n'nodeId' is an optional identifier of the node the model is associated with.\n[Lineage] 'parentId' is the ID of the object storage model this model is derived from, which must be in the previous stage (source → planning → target): a source model for a planning model, and a planning model for a target model. The upstream fields of 'lineage' are derived from the parent.\n'lineage' can also be given explicitly (e.g. 'sourceGroupId'). The field of the model's own stage (e.g. 'planningModelId' of a planning model) is set to the ID of the created model by the server.\n(The body schema below shows the struct of the cm-beetle/imdl version built into cm-damselfly. To see the struct of another version, choose 'imdl/{version}/doc.json' in 'Select a definition' at the top of Swagger UI.)"
-    CreateOnPremModel:
-      method: post
-      resourcePath: /onpremmodel
-      description: "Create a new on-premise model with the given information."
     CreateRDBMSModel:
       method: post
       resourcePath: /rdbms-model
@@ -3438,19 +3554,7 @@ serviceActions:
     CreateSoftwareModel:
       method: post
       resourcePath: /software-model
-      description: "Create a new software migration user model. Use 'modelStage' to select the stage (source, planning or target) of the model.\nProvide 'sourceSoftwareModel' for a source model (modelStage=source), or 'targetSoftwareModel' for a planning or target model (modelStage=planning or target).\nThe 'sourceSoftwareModel' (or 'targetSoftwareModel') is validated against the 'SourceGroupSoftwareProperty' (or 'TargetGroupSoftwareProperty') struct of the cm-grasshopper/smdl tagged version given by 'softwareModelVersion', and is stored in that struct's form.\n'nodeId' is an optional identifier of the node the model is associated with.\n[Lineage] 'parentId' is the ID of the software model this model is derived from, which must be in the previous stage (source → planning → target): a source model for a planning model, and a planning model for a target model. The upstream fields of 'lineage' are derived from the parent.\n'lineage' can also be given explicitly (e.g. 'sourceGroupId'). The field of the model's own stage (e.g. 'planningModelId' of a planning model) is set to the ID of the created model by the server.\n(The body schema below shows the struct of the cm-grasshopper/smdl version built into cm-damselfly. To see the struct of another version, choose 'smdl/{version}/doc.json' in 'Select a definition' at the top of Swagger UI.)"
-    CreateSourceSoftwareModel:
-      method: post
-      resourcePath: /softwaremodel/source
-      description: "Create a new source software user model with the given information."
-    CreateTargetSoftwareModel:
-      method: post
-      resourcePath: /softwaremodel/target
-      description: "Create a new target software user model with the given information."
-    DeleteCloudModel:
-      method: delete
-      resourcePath: /cloudmodel/{id}
-      description: "Delete a cloud user model with the given information."
+      description: "Create a new software migration user model. Use 'modelStage' to select the stage (source, planning or target) of the model.\nProvide 'sourceSoftwareModel' for a source or planning model (modelStage=source or planning), or 'targetSoftwareModel' for a target model (modelStage=target).\nThe 'sourceSoftwareModel' (or 'targetSoftwareModel') is validated against the 'SourceGroupSoftwareProperty' (or 'TargetGroupSoftwareProperty') struct of the cm-grasshopper/smdl tagged version given by 'softwareModelVersion', and is stored in that struct's form.\n'nodeId' is an optional identifier of the node the model is associated with.\n[Lineage] 'parentId' is the ID of the software model this model is derived from, which must be in the previous stage (source → planning → target): a source model for a planning model, and a planning model for a target model. The upstream fields of 'lineage' are derived from the parent.\n'lineage' can also be given explicitly (e.g. 'sourceGroupId'). The field of the model's own stage (e.g. 'planningModelId' of a planning model) is set to the ID of the created model by the server.\n(The body schema below shows the struct of the cm-grasshopper/smdl version built into cm-damselfly. To see the struct of another version, choose 'smdl/{version}/doc.json' in 'Select a definition' at the top of Swagger UI.)"
     DeleteInfraModel:
       method: delete
       resourcePath: /infra-model/{id}
@@ -3459,10 +3563,6 @@ serviceActions:
       method: delete
       resourcePath: /object-storage-model/{id}
       description: "Delete a specific object storage migration user model by ID. Use 'modelStage' to specify the stage (source, planning or target) of the model.\nIf the model is referred to by the lineage of other models, it is not deleted (409 Conflict with the referring models in 'list') unless 'force' is true."
-    DeleteOnPremModel:
-      method: delete
-      resourcePath: /onpremmodel/{id}
-      description: "Delete a on-premise model with the given information."
     DeleteRDBMSModel:
       method: delete
       resourcePath: /rdbms-model/{id}
@@ -3471,34 +3571,18 @@ serviceActions:
       method: delete
       resourcePath: /software-model/{id}
       description: "Delete a specific software migration user model by ID. Use 'modelStage' to specify the stage (source, planning or target) of the model.\nIf the model is referred to by the lineage of other models, it is not deleted (409 Conflict with the referring models in 'list') unless 'force' is true."
-    DeleteSourceSoftwareModel:
-      method: delete
-      resourcePath: /softwaremodel/source/{id}
-      description: "Delete a source software user model with the given information."
-    DeleteTargetSoftwareModel:
-      method: delete
-      resourcePath: /softwaremodel/target/{id}
-      description: "Delete a target software user model with the given information."
-    GetCloudModel:
-      method: get
-      resourcePath: /cloudmodel/{id}
-      description: "Get a specific cloud user model."
-    GetCloudModels:
-      method: get
-      resourcePath: /cloudmodel
-      description: "Get a list of cloud user models."
     GetInfraModel:
       method: get
       resourcePath: /infra-model/{id}
-      description: "Get a specific infra migration user model by ID. Use 'modelType' to specify whether it is an on-premise or cloud model.\nThe 'lineage' of the model refers to its upstream models and itself."
+      description: "Get a specific infra migration user model by ID. Use 'modelType' to specify whether it is an on-premise or cloud model.\nThe 'lineage' of the model refers to its upstream models and itself.\n'category' of the model (infra, software, rdbms or objectStorage) has the same values as the 'category' filter of 'GET /model'."
     GetInfraModels:
       method: get
       resourcePath: /infra-model
-      description: "Get a list of infra migration user models filtered by model type and model stage.\nThe models can be further filtered by their 'lineage' (e.g. 'sourceModelId' to find the models derived from a source model)."
+      description: "Get a list of infra migration user models filtered by model type and model stage. Multiple stages can be given by commas (e.g. 'modelStage=source,planning').\nThe models can be further filtered by their 'lineage' (e.g. 'sourceModelId' to find the models derived from a source model).\n'category' of each model (infra, software, rdbms or objectStorage) has the same values as the 'category' filter of 'GET /model'."
     GetModels:
       method: get
       resourcePath: /model
-      description: "Get a list of migration user models of all categories (infra, software, rdbms and objectStorage).\nUse 'modelStage' to select the stage (source, planning or target) of the models, and 'category' to select the category. If omitted, the models of all stages (or all categories) are returned.\nThe models can be further filtered by their 'lineage' (e.g. 'sourceGroupId' to get all the models derived from a source group)."
+      description: "Get a list of migration user models of all categories (infra, software, rdbms and objectStorage).\nUse 'modelStage' to select the stage (source, planning or target) of the models, and 'category' to select the category. If omitted, the models of all stages (or all categories) are returned.\nMultiple stages can be given by commas (e.g. 'modelStage=source,planning').\nThe models can be further filtered by their 'lineage' (e.g. 'sourceGroupId' to get all the models derived from a source group).\n'category' of each model (infra, software, rdbms or objectStorage) has the same values as the 'category' filter of 'GET /model'."
     GetModelsVersions:
       method: get
       resourcePath: /model/version
@@ -3506,51 +3590,27 @@ serviceActions:
     GetObjectStorageModel:
       method: get
       resourcePath: /object-storage-model/{id}
-      description: "Get a specific object storage migration user model by ID. Use 'modelStage' to specify the stage (source, planning or target) of the model.\nThe 'lineage' of the model refers to its upstream models and itself."
+      description: "Get a specific object storage migration user model by ID. Use 'modelStage' to specify the stage (source, planning or target) of the model.\nThe 'lineage' of the model refers to its upstream models and itself.\n'category' of the model (infra, software, rdbms or objectStorage) has the same values as the 'category' filter of 'GET /model'."
     GetObjectStorageModels:
       method: get
       resourcePath: /object-storage-model
-      description: "Get a list of object storage migration user models. Use 'modelStage' to select the stage (source, planning or target) of the models.\nThe models can be further filtered by their 'lineage' (e.g. 'sourceModelId' to find the models derived from a source model)."
-    GetOnPremModel:
-      method: get
-      resourcePath: /onpremmodel/{id}
-      description: "Get a specific on-premise model."
-    GetOnPremModels:
-      method: get
-      resourcePath: /onpremmodel
-      description: "Get a list of on-premise models."
+      description: "Get a list of object storage migration user models. Use 'modelStage' to select the stage (source, planning or target) of the models. Multiple stages can be given by commas (e.g. 'modelStage=source,planning').\nThe models can be further filtered by their 'lineage' (e.g. 'sourceModelId' to find the models derived from a source model).\n'category' of each model (infra, software, rdbms or objectStorage) has the same values as the 'category' filter of 'GET /model'."
     GetRDBMSModel:
       method: get
       resourcePath: /rdbms-model/{id}
-      description: "Get a specific RDBMS migration user model by ID. Use 'modelStage' to specify the stage (source, planning or target) of the model.\nThe 'lineage' of the model refers to its upstream models and itself."
+      description: "Get a specific RDBMS migration user model by ID. Use 'modelStage' to specify the stage (source, planning or target) of the model.\nThe 'lineage' of the model refers to its upstream models and itself.\n'category' of the model (infra, software, rdbms or objectStorage) has the same values as the 'category' filter of 'GET /model'."
     GetRDBMSModels:
       method: get
       resourcePath: /rdbms-model
-      description: "Get a list of RDBMS migration user models. Use 'modelStage' to select the stage (source, planning or target) of the models.\nThe models can be further filtered by their 'lineage' (e.g. 'sourceModelId' to find the models derived from a source model)."
+      description: "Get a list of RDBMS migration user models. Use 'modelStage' to select the stage (source, planning or target) of the models. Multiple stages can be given by commas (e.g. 'modelStage=source,planning').\nThe models can be further filtered by their 'lineage' (e.g. 'sourceModelId' to find the models derived from a source model).\n'category' of each model (infra, software, rdbms or objectStorage) has the same values as the 'category' filter of 'GET /model'."
     GetSoftwareModel:
       method: get
       resourcePath: /software-model/{id}
-      description: "Get a specific software migration user model by ID. Use 'modelStage' to specify the stage (source, planning or target) of the model.\nThe 'lineage' of the model refers to its upstream models and itself."
+      description: "Get a specific software migration user model by ID. Use 'modelStage' to specify the stage (source, planning or target) of the model.\nThe 'lineage' of the model refers to its upstream models and itself.\n'category' of the model (infra, software, rdbms or objectStorage) has the same values as the 'category' filter of 'GET /model'."
     GetSoftwareModels:
       method: get
       resourcePath: /software-model
-      description: "Get a list of software migration user models. Use 'modelStage' to select the stage (source, planning or target) of the models.\nThe models can be further filtered by their 'lineage' (e.g. 'sourceModelId' to find the models derived from a source model)."
-    GetSourceSoftwareModel:
-      method: get
-      resourcePath: /softwaremodel/source/{id}
-      description: "Get a specific source software user model."
-    GetSourceSoftwareModels:
-      method: get
-      resourcePath: /softwaremodel/source
-      description: "Get a list of source software user models."
-    GetTargetSoftwareModel:
-      method: get
-      resourcePath: /softwaremodel/target/{id}
-      description: "Get a specific target software user model."
-    GetTargetSoftwareModels:
-      method: get
-      resourcePath: /softwaremodel/target
-      description: "Get a list of target software user models."
+      description: "Get a list of software migration user models. Use 'modelStage' to select the stage (source, planning or target) of the models. Multiple stages can be given by commas (e.g. 'modelStage=source,planning').\nThe models can be further filtered by their 'lineage' (e.g. 'sourceModelId' to find the models derived from a source model).\n'category' of each model (infra, software, rdbms or objectStorage) has the same values as the 'category' filter of 'GET /model'."
     RestCheckHTTPVersion:
       method: get
       resourcePath: /httpVersion
@@ -3559,10 +3619,6 @@ serviceActions:
       method: get
       resourcePath: /readyz
       description: "Check Damselfly is ready"
-    UpdateCloudModel:
-      method: put
-      resourcePath: /cloudmodel/{id}
-      description: "Update a cloud user model with the given information."
     UpdateInfraModel:
       method: put
       resourcePath: /infra-model/{id}
@@ -3571,10 +3627,6 @@ serviceActions:
       method: put
       resourcePath: /object-storage-model/{id}
       description: "Update a specific object storage migration user model by ID.\nThe model stage is changed to 'modelStage' if it is given, and is preserved otherwise.\nProvide 'sourceObjectStorageModel' if the (resulting) stage is source or planning, or 'targetObjectStorageModel' if it is target.\n'createTime' and 'objectStorageModelVersion' of the stored model are preserved, and 'sourceObjectStorageModel' (or 'targetObjectStorageModel') is validated against the struct of that cm-beetle/imdl tagged version.\n[Lineage] The stored 'lineage' is preserved if neither 'lineage' nor 'parentId' is given. If 'lineage' is given, it replaces the stored one. If 'parentId' is given, the upstream fields are derived from that object storage model in the previous stage (source → planning → target).\nThe stage cannot be changed while the model is referred to by the lineage of other models (409 Conflict with the referring models in 'list')."
-    UpdateOnPremModel:
-      method: put
-      resourcePath: /onpremmodel/{id}
-      description: "Update a on-premise model with the given information."
     UpdateRDBMSModel:
       method: put
       resourcePath: /rdbms-model/{id}
@@ -3582,15 +3634,7 @@ serviceActions:
     UpdateSoftwareModel:
       method: put
       resourcePath: /software-model/{id}
-      description: "Update a specific software migration user model by ID.\nThe model stage is changed to 'modelStage' if it is given, and is preserved otherwise.\nProvide 'sourceSoftwareModel' if the (resulting) stage is source, or 'targetSoftwareModel' if it is planning or target.\n'createTime' and 'softwareModelVersion' of the stored model are preserved, and 'sourceSoftwareModel' (or 'targetSoftwareModel') is validated against the struct of that cm-grasshopper/smdl tagged version.\n[Lineage] The stored 'lineage' is preserved if neither 'lineage' nor 'parentId' is given. If 'lineage' is given, it replaces the stored one. If 'parentId' is given, the upstream fields are derived from that model in the previous stage (source → planning → target).\nThe stage cannot be changed while the model is referred to by the lineage of other models (409 Conflict with the referring models in 'list')."
-    UpdateSourceSoftwareModel:
-      method: put
-      resourcePath: /softwaremodel/source/{id}
-      description: "Update a source software user model with the given information."
-    UpdateTargetSoftwareModel:
-      method: put
-      resourcePath: /softwaremodel/target/{id}
-      description: "Update a target software user model with the given information."
+      description: "Update a specific software migration user model by ID.\nThe model stage is changed to 'modelStage' if it is given, and is preserved otherwise.\nProvide 'sourceSoftwareModel' if the (resulting) stage is source or planning, or 'targetSoftwareModel' if it is target.\n'createTime' and 'softwareModelVersion' of the stored model are preserved, and 'sourceSoftwareModel' (or 'targetSoftwareModel') is validated against the struct of that cm-grasshopper/smdl tagged version.\n[Lineage] The stored 'lineage' is preserved if neither 'lineage' nor 'parentId' is given. If 'lineage' is given, it replaces the stored one. If 'parentId' is given, the upstream fields are derived from that model in the previous stage (source → planning → target).\nThe stage cannot be changed while the model is referred to by the lineage of other models (409 Conflict with the referring models in 'list')."
   cm-grasshopper:
     Create-Velero-Backup:
       method: post
